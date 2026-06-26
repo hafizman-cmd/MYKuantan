@@ -1,0 +1,111 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useUploadModal } from "@/components/UploadModalProvider";
+
+const NAV_LINKS = [
+  { label: "Lookbook", href: "#lookbook" },
+  { label: "Gallery", href: "#gallery" },
+  { label: "Stories", href: "#stories" },
+  { label: "Visit", href: "#visit" },
+];
+
+export default function Navbar() {
+  const [scrolled, setScrolled] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const { open: openUpload } = useUploadModal();
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 24);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  return (
+    <header className="w-full overflow-hidden block sticky top-0 z-50">
+      <div
+        className={`w-full transition-all duration-500 ease-out ${
+          scrolled
+            ? "bg-[#F5F0E8]/85 backdrop-blur-xl border-b border-stone-900/10 shadow-[0_8px_30px_rgba(15,52,96,0.06)]"
+            : "bg-transparent"
+        }`}
+      >
+        <nav className="w-full max-w-[1600px] mx-auto px-6 lg:px-16 h-20 md:h-24 flex items-center justify-between">
+          <a
+            href="#top"
+            className="font-display font-extrabold tracking-tight text-stone-900 text-3xl md:text-4xl leading-none select-none"
+          >
+            Kuantan
+          </a>
+
+          <div className="flex items-center gap-8 md:gap-10">
+            <ul className="hidden md:flex items-center gap-8">
+              {NAV_LINKS.map((link) => (
+                <li key={link.href}>
+                  <a
+                    href={link.href}
+                    className="text-[13px] uppercase tracking-[0.18em] text-stone-700 hover:text-[#0F3460] transition-colors duration-300 font-medium"
+                  >
+                    {link.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                openUpload();
+              }}
+              className="hidden sm:inline-flex items-center rounded-full bg-[#0F3460] px-6 py-2.5 text-[12px] uppercase tracking-[0.2em] text-[#F5F0E8] font-semibold hover:bg-[#1A4A7A] transition-colors duration-300"
+            >
+              Submit
+            </button>
+            <button
+              aria-label="Open menu"
+              aria-expanded={isOpen}
+              onClick={() => setIsOpen(!isOpen)}
+              className="md:hidden flex flex-col items-end gap-1.5 p-2"
+            >
+              <span className="block h-[2px] w-6 bg-stone-900" />
+              <span className="block h-[2px] w-4 bg-stone-900" />
+            </button>
+          </div>
+        </nav>
+      </div>
+
+      {/* Mobile dropdown drawer — hidden on md+ screens */}
+      {isOpen && (
+        <div className="md:hidden w-full bg-[#F5F0E8]/95 backdrop-blur-xl border-b border-stone-900/10 shadow-[0_8px_30px_rgba(15,52,96,0.08)]">
+          <ul className="w-full max-w-[1600px] mx-auto px-6 py-4 flex flex-col gap-1">
+            {NAV_LINKS.map((link) => (
+              <li key={link.href}>
+                <a
+                  href={link.href}
+                  onClick={() => setIsOpen(false)}
+                  className="block w-full py-3 text-sm uppercase tracking-[0.18em] text-stone-700 hover:text-[#0F3460] transition-colors duration-300 font-medium"
+                >
+                  {link.label}
+                </a>
+              </li>
+            ))}
+            <li>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setIsOpen(false);
+                  openUpload();
+                }}
+                className="mt-2 w-full inline-flex items-center justify-center rounded-full bg-[#0F3460] px-6 py-3 text-[12px] uppercase tracking-[0.2em] text-[#F5F0E8] font-semibold hover:bg-[#1A4A7A] transition-colors duration-300"
+              >
+                Submit
+              </button>
+            </li>
+          </ul>
+        </div>
+      )}
+    </header>
+  );
+}
