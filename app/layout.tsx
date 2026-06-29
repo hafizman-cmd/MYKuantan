@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Playfair_Display, Inter } from "next/font/google";
 import UploadModalProvider from "@/components/UploadModalProvider";
 import "./globals.css";
@@ -21,6 +21,7 @@ export const metadata: Metadata = {
   title: "MYKuantan — An Editorial Celebration of Kuantan, Pahang",
   description:
     "A luxury travel lookbook celebrating Kuantan, Pahang, Malaysia — modern print-magazine feel, elegant typography, and generous breathing room.",
+  manifest: "/manifest.webmanifest",
   openGraph: {
     title: "MYKuantan — An Editorial Celebration of Kuantan, Pahang",
     description:
@@ -32,6 +33,12 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
     title: "MYKuantan",
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0F3460",
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({

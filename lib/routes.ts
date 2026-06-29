@@ -20,6 +20,26 @@ export const locationRouteMap: Record<string, RouteCategory> = {
   "Bandar Gambang": "Heritage",
 };
 
+export const locationCoords: Record<string, [number, number]> = {
+  "Bandar Kuantan": [3.808, 103.325],
+  "Bukit Panorama": [3.915889608189525, 103.03655704954012],
+  "Pantai Berserah": [3.8614, 103.3674],
+  "Pantai Sepat": [3.7388, 103.3323],
+  "Teluk Cempedak": [3.8114, 103.3725],
+  "Sungai Kuantan": [3.8016, 103.3275],
+  "Tanjung Lumpur": [3.807015563173489, 103.3404958696269],
+  "Air Terjun Pelangi": [3.922173525732795, 102.94733952401076],
+  "Bandar Sungai Lembing": [3.9148912029592844, 103.0326275272876],
+  "Pantai Balok": [3.9317, 103.3742],
+  "Masjid Sultan Ahmad Shah": [3.8078, 103.3262],
+  "Pesisir Sungai Ular": [4.048433018193487, 103.39626490192093],
+  "Air Terjun Panching": [3.791, 103.145],
+  "Bukit Pelindung": [3.8254210748616564, 103.35797912349821],
+  "Pantai Batu Hitam": [3.89, 103.37],
+  "UMPSA Gambang": [3.7215527630536913, 103.12389109264338],
+  "Bandar Gambang": [3.7061512771021405, 103.09869270361182],
+};
+
 export interface RouteItineraryPoint {
   time: string;
   detail: string;

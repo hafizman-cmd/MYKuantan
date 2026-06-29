@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import dynamic from "next/dynamic";
 import type { Photo } from "@/types/photo";
-import type { RouteCategory } from "@/lib/routes";
 
 const EditorialMap = dynamic(() => import("./EditorialMap"), {
   ssr: false,
@@ -12,12 +11,10 @@ const EditorialMap = dynamic(() => import("./EditorialMap"), {
 
 interface GalleryProps {
   photos: Photo[];
-  activeRouteFilter?: RouteCategory | null;
 }
 
 export default function Gallery({
   photos,
-  activeRouteFilter = null,
 }: GalleryProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const cardRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
@@ -144,7 +141,6 @@ export default function Gallery({
             <EditorialMap
               photos={photos}
               activeLocation={activeLocation}
-              activeRouteFilter={activeRouteFilter}
             />
           </div>
         </div>
