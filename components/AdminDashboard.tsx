@@ -240,7 +240,7 @@ export default function AdminDashboard({
           </div>
         </header>
 
-        {(tab === "overview" || tab === "archive" || tab === "moderation") && (
+        {tab === "overview" && (
           <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6 mb-8">
             <MetricCard
               label="Pending Queue"
@@ -360,6 +360,36 @@ export default function AdminDashboard({
           </section>
         )}
       </main>
+
+      {/* Mobile action bar — standalone, anchors to bottom on phones */}
+      <div className="flex md:hidden items-center justify-between w-full border-t border-stone-200 mt-auto p-4">
+        <Link
+          href="/"
+          className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm text-stone-600 hover:text-[#0F3460] hover:bg-stone-100 transition-colors duration-200 font-medium"
+        >
+          <svg
+            className="w-4 h-4 shrink-0"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
+            <path d="M19 12H5" />
+            <path d="M12 19l-7-7 7-7" />
+          </svg>
+          <span>View Site</span>
+        </Link>
+        <button
+          onClick={handleSignOut}
+          className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm text-stone-600 hover:text-[#0F3460] hover:bg-stone-100 transition-colors font-medium"
+        >
+          <SignOutIcon />
+          <span>Sign out</span>
+        </button>
+      </div>
     </div>
   );
 }
