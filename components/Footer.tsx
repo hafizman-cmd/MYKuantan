@@ -40,6 +40,15 @@ export default function Footer() {
             <span className="hidden md:inline text-stone-700">·</span>
             <span>Crafted in Pahang, Malaysia.</span>
           </div>
+
+          <a
+            href="/admin"
+            aria-label="Editorial access"
+            title="Editorial access"
+            className="mt-2 inline-block px-4 py-2 text-stone-700 hover:text-stone-400 transition-colors duration-300 text-xs leading-none"
+          >
+            ·
+          </a>
         </div>
       </div>
     </footer>

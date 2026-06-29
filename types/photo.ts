@@ -8,4 +8,6 @@ export interface Photo {
   caption: string;
   status: PhotoStatus;
   created_at: string;
+  latitude: number | null;
+  longitude: number | null;
 }

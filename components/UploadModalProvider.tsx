@@ -14,6 +14,8 @@ import {
 import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
 import { supabase, SUPABASE_PHOTOS_TABLE } from "@/lib/supabase";
+import { KUANTAN_LOCATIONS, getCoordinatesByName } from "@/lib/locations";
+import { toTitleCase } from "@/lib/format";
 
 interface UploadModalContextValue {
   open: () => void;
@@ -88,6 +90,7 @@ export default function UploadModalProvider({ children }: { children: ReactNode 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [photographer, setPhotographer] = useState("");
   const [location, setLocation] = useState("");
+  const [coords, setCoords] = useState<[number, number] | null>(null);
   const [caption, setCaption] = useState("");
   const [status, setStatus] = useState<Status>("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -138,6 +141,7 @@ export default function UploadModalProvider({ children }: { children: ReactNode 
     setFile(null);
     setPhotographer("");
     setLocation("");
+    setCoords(null);
     setCaption("");
     setStatus("idle");
     setErrorMsg(null);
@@ -214,9 +218,11 @@ export default function UploadModalProvider({ children }: { children: ReactNode 
         .from(SUPABASE_PHOTOS_TABLE)
         .insert({
           image_url,
-          photographer: photographer.trim(),
+          photographer: toTitleCase(photographer),
           location: location.trim(),
           caption: caption.trim(),
+          latitude: coords ? coords[0] : null,
+          longitude: coords ? coords[1] : null,
           status: "pending",
         });
 
@@ -365,14 +371,25 @@ export default function UploadModalProvider({ children }: { children: ReactNode 
                     />
                   </Field>
                   <Field label="Location" required>
-                    <input
-                      type="text"
+                    <select
                       value={location}
-                      onChange={(e) => setLocation(e.target.value)}
-                      placeholder="e.g. Teluk Cempedak"
+                      onChange={(e) => {
+                        const name = e.target.value;
+                        setLocation(name);
+                        setCoords(name ? getCoordinatesByName(name) : null);
+                      }}
                       required
-                      className="w-full rounded-xl border border-stone-300 bg-white/70 px-4 py-3 text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-[#0F3460] focus:ring-2 focus:ring-[#0F3460]/15 transition"
-                    />
+                      className="w-full rounded-xl border border-stone-300 bg-white/70 px-4 py-3 text-stone-900 focus:outline-none focus:border-[#0F3460] focus:ring-2 focus:ring-[#0F3460]/15 transition"
+                    >
+                      <option value="" disabled>
+                        Select a location
+                      </option>
+                      {KUANTAN_LOCATIONS.map((l) => (
+                        <option key={l.name} value={l.name}>
+                          {l.name}
+                        </option>
+                      ))}
+                    </select>
                   </Field>
                 </div>
 

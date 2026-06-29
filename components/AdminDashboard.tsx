@@ -2,10 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { animate, AnimatePresence, motion } from "framer-motion";
 import type { Photo } from "@/types/photo";
 import { supabase, SUPABASE_PHOTOS_TABLE } from "@/lib/supabase";
 import { updatePhotoDetails, deletePhotoPermanently } from "@/lib/api";
+import { KUANTAN_LOCATIONS, getCoordinatesByName } from "@/lib/locations";
+import { toTitleCase } from "@/lib/format";
 
 type Tab = "overview" | "moderation" | "analytics" | "archive";
 type Range = "day" | "week" | "month";
@@ -96,12 +99,22 @@ export default function AdminDashboard({
 
   const handleSaveDetails = async (
     id: string,
-    updates: { photographer?: string; location?: string; caption?: string }
+    updates: {
+      photographer?: string;
+      location?: string;
+      caption?: string;
+      latitude?: number | null;
+      longitude?: number | null;
+    }
   ): Promise<boolean> => {
+    const sanitized: typeof updates = { ...updates };
+    if (typeof sanitized.photographer === "string") {
+      sanitized.photographer = toTitleCase(sanitized.photographer);
+    }
     setAll((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, ...updates } : p))
+      prev.map((p) => (p.id === id ? { ...p, ...sanitized } : p))
     );
-    return updatePhotoDetails(id, updates);
+    return updatePhotoDetails(id, sanitized);
   };
 
   const handleTakeDown = async (id: string) => {
@@ -145,6 +158,27 @@ export default function AdminDashboard({
           <span className="text-[10px] uppercase tracking-[0.3em] text-stone-400">
             Admin Console
           </span>
+        </div>
+        <div className="hidden md:block px-4">
+          <Link
+            href="/"
+            className="flex items-center gap-3 px-4 py-2 text-sm text-stone-400 hover:text-amber-400 transition-colors duration-200 rounded-xl font-medium mb-6 group"
+          >
+            <svg
+              className="w-4 h-4 shrink-0 group-hover:-translate-x-1 transition-transform"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <path d="M19 12H5" />
+              <path d="M12 19l-7-7 7-7" />
+            </svg>
+            <span>View Site</span>
+          </Link>
         </div>
         <nav className="flex md:flex-col flex-row gap-1 px-2 md:px-4 py-2 md:py-2 overflow-x-auto md:overflow-visible">
           {TABS.map((t) => (
@@ -710,6 +744,8 @@ interface EditDraft {
   photographer: string;
   location: string;
   caption: string;
+  latitude: number | null;
+  longitude: number | null;
 }
 
 function ActiveArchive({
@@ -731,6 +767,8 @@ function ActiveArchive({
     photographer: "",
     location: "",
     caption: "",
+    latitude: null,
+    longitude: null,
   });
   const [saving, setSaving] = useState(false);
 
@@ -740,6 +778,8 @@ function ActiveArchive({
       photographer: p.photographer,
       location: p.location,
       caption: p.caption,
+      latitude: p.latitude,
+      longitude: p.longitude,
     });
   };
 
@@ -885,12 +925,32 @@ function ActiveArchive({
                         <span className="text-[10px] uppercase tracking-[0.2em] text-stone-500 font-semibold">
                           Location
                         </span>
-                        <input
-                          type="text"
+                        <select
                           value={draft.location}
-                          onChange={(e) => setDraft({ ...draft, location: e.target.value })}
+                          onChange={(e) => {
+                            const name = e.target.value;
+                            const coords = name ? getCoordinatesByName(name) : null;
+                            setDraft({
+                              ...draft,
+                              location: name,
+                              latitude: coords ? coords[0] : null,
+                              longitude: coords ? coords[1] : null,
+                            });
+                          }}
                           className="w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus:outline-none focus:border-[#0F3460] transition"
-                        />
+                        >
+                          {[
+                            ...(draft.location &&
+                            !KUANTAN_LOCATIONS.some((l) => l.name === draft.location)
+                              ? [{ name: draft.location }]
+                              : []),
+                            ...KUANTAN_LOCATIONS,
+                          ].map((l) => (
+                            <option key={l.name} value={l.name}>
+                              {l.name}
+                            </option>
+                          ))}
+                        </select>
                       </label>
                       <label className="flex flex-col gap-1">
                         <span className="text-[10px] uppercase tracking-[0.2em] text-stone-500 font-semibold">

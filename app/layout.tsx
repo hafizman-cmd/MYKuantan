@@ -27,6 +27,11 @@ export const metadata: Metadata = {
       "A luxury travel lookbook celebrating Kuantan, Pahang, Malaysia.",
     type: "website",
   },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "MYKuantan",
+  },
 };
 
 export default function RootLayout({
