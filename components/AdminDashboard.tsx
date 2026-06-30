@@ -975,11 +975,13 @@ function ActiveArchive({
                               ? [{ name: draft.location }]
                               : []),
                             ...KUANTAN_LOCATIONS,
-                          ].map((l) => (
-                            <option key={l.name} value={l.name}>
-                              {l.name}
-                            </option>
-                          ))}
+                          ]
+                            .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
+                            .map((l) => (
+                              <option key={l.name} value={l.name}>
+                                {l.name}
+                              </option>
+                            ))}
                         </select>
                       </label>
                       <label className="flex flex-col gap-1">

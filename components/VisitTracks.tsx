@@ -30,6 +30,24 @@ const locationDetailsRegistry: Record<string, { time: string; activity: string }
   "Bandar Kuantan": { time: "09:00 AM", activity: "Explore historical roots and city infrastructure" },
   "Masjid Sultan Ahmad Shah": { time: "11:00 AM", activity: "Architectural study of the majestic state mosque" },
   "Tanjung Lumpur": { time: "02:00 PM", activity: "Traditional charcoal-grilled culinary stops" },
+  "Air Terjun Berkelah": { time: "Flexible Time", activity: "Trek through the rainforest to the cascading Berkelah falls" },
+  "Menara Kuantan 188": { time: "Flexible Time", activity: "Rise above the city on the 188-meter observation tower" },
+  "Sungai Cherating": { time: "Flexible Time", activity: "River cruise and firefly-watching along the Cherating waters" },
+  "Taman Bandar Kuantan": { time: "Flexible Time", activity: "Leisurely stroll and people-watching in the city park" },
+  "Taman Gelora": { time: "Flexible Time", activity: "Pine-grove picnic beside the sea breeze" },
+  "Zoo Mini Teruntum": { time: "Flexible Time", activity: "Family-friendly wildlife encounter at the mini zoo" },
+  "Natural Batik Village": { time: "Flexible Time", activity: "Hands-on batik workshop and heritage craft study" },
+  "Muzium Sungai Lembing": { time: "Flexible Time", activity: "Mining heritage exhibits inside the historic tunnel museum" },
+  "Pantai Cherating": { time: "Flexible Time", activity: "Turtle beach stroll and laid-back surf breaks" },
+  "Petrosains Kuantan": { time: "Flexible Time", activity: "Interactive science discovery for all ages" },
+  "East Coast Mall": { time: "Flexible Time", activity: "Shopping and dining at the east coast retail hub" },
+  "Pantai Balok": { time: "07:00 AM", activity: "Kite-surfing winds and wide dawn sands" },
+  "Pantai Pelindung": { time: "Flexible Time", activity: "Secluded fisherman cove and rocky headland photography" },
+  "Gua Charas": { time: "Flexible Time", activity: "Limestone cave temple climb and stalactite study" },
+  "Kuantan City Mall": { time: "Flexible Time", activity: "Modern retail and lifestyle centre exploration" },
+  "Santuari Penyu": { time: "Flexible Time", activity: "Turtle nesting conservation sanctuary visit" },
+  "Muzium Seni Pahang": { time: "Flexible Time", activity: "State art museum and cultural gallery tour" },
+  "Esplanade Kuantan": { time: "Flexible Time", activity: "Riverside esplanade promenade at golden hour" },
 };
 
 function timeToMinutes(time: string): number {
@@ -101,11 +119,13 @@ export default function VisitTracks({ photos }: VisitTracksProps) {
           .map((p) => p.location)
       )
     );
-    return unique.sort(
-      (a, b) =>
+    return unique.sort((a, b) => {
+      const timeDiff =
         timeToMinutes(getLocationDetails(a).time) -
-        timeToMinutes(getLocationDetails(b).time)
-    );
+        timeToMinutes(getLocationDetails(b).time);
+      if (timeDiff !== 0) return timeDiff;
+      return (a || "").localeCompare(b || "");
+    });
   }, [photos, activeRouteFilter]);
 
   const journeyUrl =

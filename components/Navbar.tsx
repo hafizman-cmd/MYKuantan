@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useUploadModal } from "@/components/UploadModalProvider";
+import Link from "next/link";
 
 const NAV_LINKS = [
   { label: "Lookbook", href: "#lookbook" },
@@ -12,10 +12,9 @@ const NAV_LINKS = [
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
-  const { open: openUpload } = useUploadModal();
 
   return (
-<header className="fixed top-0 left-0 right-0 z-50 w-full bg-[#FAF8F5]/80 backdrop-blur-md border-b border-stone-200/60">
+    <header className="fixed top-0 left-0 right-0 z-50 w-full bg-[#FAF8F5]/80 backdrop-blur-md border-b border-stone-200/60">
       <nav className="w-full max-w-[1600px] mx-auto px-6 lg:px-16 h-20 md:h-24 flex items-center justify-between">
         <a
           href="#top"
@@ -25,36 +24,32 @@ export default function Navbar() {
         </a>
 
         <div className="flex items-center gap-8 md:gap-10">
-            <ul className="hidden md:flex items-center gap-8">
-              {NAV_LINKS.map((link) => (
-                <li key={link.href}>
-                  <a
-                    href={link.href}
-                    className="text-[13px] uppercase tracking-[0.18em] text-stone-700 hover:text-[#0F3460] transition-colors duration-300 font-medium"
-                  >
-                    {link.label}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              openUpload();
-            }}
-            className="hidden sm:inline-flex items-center rounded-full bg-[#0F3460] px-6 py-2.5 text-[12px] uppercase tracking-[0.2em] text-[#F5F0E8] font-semibold hover:bg-[#1A4A7A] transition-colors duration-300"
+          <ul className="hidden md:flex items-center gap-8">
+            {NAV_LINKS.map((link) => (
+              <li key={link.href}>
+                <a
+                  href={link.href}
+                  className="text-[13px] uppercase tracking-[0.18em] text-stone-700 hover:text-[#0F3460] transition-colors duration-300 font-medium"
+                >
+                  {link.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+          <Link
+            href="/submit"
+            className="hidden sm:inline-flex items-center rounded-full border border-[#0F3460] bg-transparent px-6 py-2.5 text-[12px] uppercase tracking-[0.2em] text-[#0F3460] font-semibold hover:bg-[#0F3460] hover:text-[#FAF8F5] transition-all duration-300"
           >
             Submit
-          </button>
+          </Link>
           <button
             aria-label="Open menu"
             aria-expanded={isOpen}
             onClick={() => setIsOpen(!isOpen)}
             className="md:hidden flex flex-col items-end gap-1.5 p-2"
           >
-<span className="block h-[2px] w-6 bg-stone-900" />
-              <span className="block h-[2px] w-4 bg-stone-900" />
+            <span className="block h-[2px] w-6 bg-stone-900" />
+            <span className="block h-[2px] w-4 bg-stone-900" />
           </button>
         </div>
       </nav>
@@ -75,17 +70,13 @@ export default function Navbar() {
               </li>
             ))}
             <li>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  setIsOpen(false);
-                  openUpload();
-                }}
+              <Link
+                href="/submit"
+                onClick={() => setIsOpen(false)}
                 className="mt-2 w-full inline-flex items-center justify-center rounded-full bg-[#0F3460] px-6 py-3 text-[12px] uppercase tracking-[0.2em] text-[#F5F0E8] font-semibold hover:bg-[#1A4A7A] transition-colors duration-300"
               >
                 Submit
-              </button>
+              </Link>
             </li>
           </ul>
         </div>
