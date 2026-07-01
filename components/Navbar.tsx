@@ -73,7 +73,7 @@ export default function Navbar() {
               <Link
                 href="/submit"
                 onClick={() => setIsOpen(false)}
-                className="mt-2 w-full inline-flex items-center justify-center rounded-full bg-[#0F3460] px-6 py-3 text-[12px] uppercase tracking-[0.2em] text-[#F5F0E8] font-semibold hover:bg-[#1A4A7A] transition-colors duration-300"
+                className="mt-2 inline-flex w-full sm:w-auto items-center justify-center rounded-full border border-[#0F3460] bg-transparent px-6 py-2.5 text-[12px] uppercase tracking-[0.2em] text-[#0F3460] font-semibold hover:bg-[#0F3460] hover:text-[#FAF8F5] transition-all duration-300"
               >
                 Submit
               </Link>
