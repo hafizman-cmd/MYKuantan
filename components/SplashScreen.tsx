@@ -4,24 +4,21 @@ import { useEffect, useState, useRef } from "react";
 
 export default function SplashScreen() {
   const [isRendered, setIsRendered] = useState(true);
-  const [videoSrc, setVideoSrc] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState<boolean | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    // 1. Session Storage Gatekeeper
+    // 1. Check if the user has already seen the intro
     const hasSeenSplash = sessionStorage.getItem("mykuantan_splash_seen");
     if (hasSeenSplash) {
       setIsRendered(false);
       return;
     }
 
-    // 2. Smart Device Detection
-    // Checks screen width on load: under 768px gets mobile, over gets desktop
-    const isMobileDevice = window.innerWidth < 768;
-    setVideoSrc(isMobileDevice ? "/loading_mobile.mp4" : "/loading_desktop.mp4");
+    // 2. Set device state instantly on mount
+    setIsMobile(window.innerWidth < 768);
 
-    // 3. Absolute Hold Timer (4.0 Seconds)
-    // Holds the video perfectly on screen, then unmounts instantly and cleanly
+    // 3. Perfect 4-second hold timeline
     timeoutRef.current = setTimeout(() => {
       setIsRendered(false);
       sessionStorage.setItem("mykuantan_splash_seen", "true");
@@ -32,20 +29,24 @@ export default function SplashScreen() {
     };
   }, []);
 
-  // Prevent rendering on Server-Side (SSR) to avoid Next.js hydration errors
-  if (!isRendered || !videoSrc) {
+  if (!isRendered) {
     return null;
   }
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#FAF8F5]">
-      <video
-        src={videoSrc}
-        autoPlay
-        muted
-        playsInline
-        className="w-full h-full object-cover"
-      />
+      {/* Only render the player once device width is verified */}
+      {isMobile !== null && (
+        <video
+          src={isMobile ? "/loading_mobile.mp4" : "/loading_desktop.mp4"}
+          autoPlay
+          muted
+          playsInline
+          loop
+          preload="auto" // 🔥 CRUCIAL: Forces the device to cache and decode frames instantly
+          className="w-full h-full object-cover"
+        />
+      )}
     </div>
   );
 }
