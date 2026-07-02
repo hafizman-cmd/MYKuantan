@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
 import type { Photo } from "@/types/photo";
@@ -9,14 +9,149 @@ interface HeroProps {
   latestPhotos: Photo[];
 }
 
+interface TrackerData {
+  windSpeed: number;
+  windDirectionText: string;
+  isOnshore: boolean;
+  tideStatus: string;
+  tideHeight: string;
+  countdownText: string;
+}
+
+const KUANTAN_LAT = 3.8077;
+const KUANTAN_LNG = 103.3260;
+
+function degreesToCardinal(deg: number): string {
+  const dirs = [
+    "N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
+    "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW",
+  ];
+  const idx = Math.round(deg / 22.5) % 16;
+  return dirs[idx];
+}
+
+function computeTide(date: Date): { status: string; height: string } {
+  const hours = date.getHours() + date.getMinutes() / 60;
+  // Semi-diurnal cycle: ~12.42h period; phase anchored to ~00:00 high tide.
+  const phase = ((hours / 12.42) * 2 * Math.PI);
+  const height = Math.sin(phase + Math.PI / 2); // [-1, 1], 1=high
+  const norm = (height + 1) / 2;
+  let status: string;
+  if (norm > 0.75) status = "High Tide";
+  else if (norm > 0.55) status = "Rising";
+  else if (norm > 0.45) status = "Mid Tide";
+  else if (norm > 0.25) status = "Falling";
+  else status = "Low Tide";
+  const heightM = (norm * 2.0).toFixed(2);
+  return { status, height: heightM };
+}
+
+function computeCountdown(sunset: number): string {
+  const now = Date.now();
+  const diff = sunset - now;
+  if (diff <= 0) return "Golden hour has passed";
+  const totalMin = Math.floor(diff / 60000);
+  if (totalMin > 90) {
+    const h = Math.floor(totalMin / 60);
+    const m = totalMin % 60;
+    return `Golden hour in ${h}h ${m}m`;
+  }
+  if (totalMin > 0) return `Golden hour in ${totalMin}m`;
+  return "Golden hour now";
+}
+
 export default function Hero({ latestPhotos }: HeroProps) {
   const slides = latestPhotos.slice(0, 5);
   const [active, setActive] = useState(0);
+  const [coastalData, setCoastalData] = useState<TrackerData | null>(null);
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setInterval> | undefined;
+
+    async function loadCoastalData() {
+      try {
+        const url =
+          `https://api.open-meteo.com/v1/forecast?latitude=${KUANTAN_LAT}` +
+          `&longitude=${KUANTAN_LNG}&current=wind_speed_10m,wind_direction_10m` +
+          `&daily=sunset&timezone=Asia%2FKuala_Lumpur`;
+        const res = await fetch(url);
+        if (!res.ok) return;
+        const data = await res.json();
+
+        const windSpeedRaw = data?.current?.wind_speed_10m;
+        const windDirRaw = data?.current?.wind_direction_10m;
+        const sunsetStr = data?.daily?.sunset?.[0];
+        if (windSpeedRaw == null || windDirRaw == null || !sunsetStr) return;
+
+        // Open-Meteo returns wind_speed_10m in km/h. Convert to knots.
+        const windSpeed = Math.round((Number(windSpeedRaw) / 1.852) * 10) / 10;
+        const windDir = Number(windDirRaw);
+        const windDirectionText = degreesToCardinal(windDir);
+        // South China Sea lies to the east of Kuantan. Onshore breeze when
+        // wind blows from the sea toward land: between 30° and 160°.
+        const isOnshore = windDir >= 30 && windDir <= 160;
+
+        const sunsetDate = new Date(`${sunsetStr}+08:00`);
+        const countdownText = computeCountdown(sunsetDate.getTime());
+        const tide = computeTide(new Date());
+
+        setCoastalData({
+          windSpeed,
+          windDirectionText,
+          isOnshore,
+          tideStatus: tide.status,
+          tideHeight: tide.height,
+          countdownText,
+        });
+      } catch {
+        // Network or parse failure — keep prior state (or null).
+      }
+    }
+
+    void loadCoastalData();
+    timer = setInterval(() => void loadCoastalData(), 10 * 60 * 1000);
+
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, []);
 
   return (
     <section id="lookbook" className="w-full overflow-hidden block">
       <div className="w-full max-w-[1600px] mx-auto px-6 lg:px-16 pt-44 md:pt-52 pb-20 md:pb-28">
         <div className="w-full max-w-3xl flex flex-col items-center justify-center text-center mx-auto mb-12">
+          {coastalData && (
+            <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-1 mb-6 text-[10px] uppercase tracking-[0.25em] animate-fade-in">
+              {/* Node 1: Dynamic Tide Metrics */}
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-[#0F3460]">TIDE //</span>
+                <span className="text-stone-600 font-medium">
+                  {coastalData.tideStatus} ({coastalData.tideHeight}m)
+                </span>
+              </div>
+              <span className="hidden sm:inline font-light text-[#0F3460]/20">|</span>
+              {/* Node 2: Wind Metrics */}
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-[#0F3460]">WIND //</span>
+                <span className="text-stone-600 font-medium">
+                  {coastalData.windSpeed} KTS {coastalData.windDirectionText}
+                </span>
+                {coastalData.isOnshore && (
+                  <span className="text-[#0F3460] font-bold tracking-[0.2em] text-[9px] bg-[#0F3460]/5 px-2 py-0.5 rounded-full">
+                    Onshore
+                  </span>
+                )}
+              </div>
+              <span className="hidden sm:inline font-light text-[#0F3460]/20">|</span>
+              {/* Node 3: Solar Tracker */}
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-[#0F3460]">LIGHT //</span>
+                <span className="text-stone-600 font-medium">
+                  {coastalData.countdownText}
+                </span>
+              </div>
+            </div>
+          )}
           <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#0F3460]/20 bg-white/40 px-5 py-2 text-[11px] uppercase tracking-[0.3em] text-[#0F3460] backdrop-blur-md">
             Pahang · Malaysia · 3.5°N
           </span>

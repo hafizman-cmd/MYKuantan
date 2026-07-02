@@ -70,9 +70,12 @@ function getLocationDetails(location: string): { time: string; activity: string 
   );
 }
 
-function buildJourneyUrl(locations: string[]): string | null {
+function buildJourneyUrl(
+  locations: string[]
+): { url: string; truncated: boolean } | null {
+  const safeItinerary = locations.slice(0, 10);
   const stops: [number, number][] = [];
-  for (const name of locations) {
+  for (const name of safeItinerary) {
     const coords = locationCoords[name];
     if (coords) stops.push(coords);
   }
@@ -82,14 +85,16 @@ function buildJourneyUrl(locations: string[]): string | null {
   const waypoints = stops.slice(1, -1);
   let url =
     `https://www.google.com/maps/dir/?api=1` +
-    `&origin=${originLat},${originLng}` +
-    `&destination=${destLat},${destLng}`;
+    `&origin=${encodeURIComponent(`${originLat},${originLng}`)}` +
+    `&destination=${encodeURIComponent(`${destLat},${destLng}`)}`;
   if (waypoints.length > 0) {
     url +=
       "&waypoints=" +
-      waypoints.map(([lat, lng]) => `${lat},${lng}`).join("%7C");
+      waypoints
+        .map(([lat, lng]) => encodeURIComponent(`${lat},${lng}`))
+        .join(encodeURIComponent("|"));
   }
-  return url;
+  return { url, truncated: locations.length > 10 };
 }
 
 interface VisitTracksProps {
@@ -128,8 +133,10 @@ export default function VisitTracks({ photos }: VisitTracksProps) {
     });
   }, [photos, activeRouteFilter]);
 
-  const journeyUrl =
+  const journey =
     activeLocations.length > 0 ? buildJourneyUrl(activeLocations) : null;
+  const journeyUrl = journey?.url ?? null;
+  const journeyTruncated = journey?.truncated ?? false;
 
   return (
     <section id="visit" className="w-full block bg-[#F5F0E8]">
@@ -255,6 +262,12 @@ export default function VisitTracks({ photos }: VisitTracksProps) {
                     </a>
                   )}
                 </div>
+                {journeyTruncated && (
+                  <p className="mb-6 text-[11px] uppercase tracking-[0.2em] font-medium text-amber-600/80 font-sans text-center md:text-left">
+                    Showing the optimal first 10 stops on your Kuantan
+                    itinerary.
+                  </p>
+                )}
                 {activeLocations.length > 0 ? (
                   <ol className="relative flex flex-col gap-6">
                     {activeLocations.map((location, idx) => {
