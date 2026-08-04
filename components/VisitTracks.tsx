@@ -139,24 +139,24 @@ export default function VisitTracks({ photos }: VisitTracksProps) {
   const journeyTruncated = journey?.truncated ?? false;
 
   return (
-    <section id="visit" className="w-full block bg-[#F5F0E8]">
-      <div className="w-full max-w-[1600px] mx-auto px-6 lg:px-16 pt-20 md:pt-28 pb-20 md:pb-28">
-        <div className="w-full max-w-3xl flex flex-col items-center justify-center text-center mx-auto mb-12 md:mb-16">
-          <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-stone-300 bg-white/60 px-5 py-2 text-[11px] uppercase tracking-[0.3em] text-stone-600 backdrop-blur-md">
-            The Itineraries
-          </span>
-          <h2 className="font-display text-stone-900 text-4xl md:text-6xl font-extrabold leading-[0.95] tracking-tight">
-            Visit Kuantan
-          </h2>
-          <p className="mt-6 max-w-xl text-base leading-relaxed text-stone-600 font-light">
-            Three curated travel routes through Pahang&apos;s coast, peaks, and
-            heritage heart. Select a trail to filter the atlas below.
-          </p>
-        </div>
+    <section
+      id="visit"
+      className="w-full max-w-7xl mx-auto px-6 pt-16 pb-6 min-h-[calc(100vh-80px)] flex flex-col justify-start overflow-hidden block bg-[#F5F0E8]"
+    >
+      <div className="w-full max-w-3xl flex flex-col items-center justify-center text-center mx-auto mb-6">
+        <h2 className="text-3xl sm:text-4xl font-serif text-stone-900 tracking-tight mb-2 text-center">
+          Visit Kuantan
+        </h2>
+        <p className="text-xs sm:text-sm text-stone-600 max-w-md mx-auto mb-6 text-center">
+          Three curated travel routes through Pahang&apos;s coast, peaks, and
+          heritage heart. Select a trail to filter the atlas below.
+        </p>
+      </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-10">
-          {/* Left Column: Route selection cards */}
-          <div className="flex flex-col gap-6">
+      <div className="w-full">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-[58vh] max-h-[580px] w-full overflow-hidden">
+          {/* Left Column: Route selection cards (scrollable) */}
+          <div className="h-full overflow-y-auto pr-3 space-y-4 custom-scrollbar flex flex-col">
             {ROUTE_TRACKS.map((route) => {
               const isSelected = activeRouteFilter === route.id;
               return (
@@ -229,10 +229,10 @@ export default function VisitTracks({ photos }: VisitTracksProps) {
           </div>
 
           {/* Right Column: Detached mini-map atlas + itinerary timeline */}
-          <div className="bg-[#FAF8F5] rounded-2xl border border-stone-200 shadow-[0_8px_30px_rgba(15,52,96,0.04)] p-6 md:p-8 flex flex-col gap-6 md:gap-8">
+          <div className="h-full w-full rounded-2xl overflow-hidden border border-stone-200 shadow-sm relative bg-[#FAF8F5] p-6 md:p-8 flex flex-col">
             <div
               id="visit-mini-map-atlas"
-              className="w-full h-[350px] md:h-[400px] rounded-xl overflow-hidden border border-stone-300 shadow-[0_8px_30px_rgba(15,52,96,0.08)] bg-slate-950"
+              className="w-full h-[180px] rounded-xl overflow-hidden border border-stone-300 shadow-[0_8px_30px_rgba(15,52,96,0.08)] bg-slate-950 shrink-0"
             >
               <VisitMiniMap
                 photos={photos}
@@ -240,79 +240,81 @@ export default function VisitTracks({ photos }: VisitTracksProps) {
               />
             </div>
 
-            {activeTrack ? (
-              <div className="flex flex-col">
-                <div className="mb-6 flex items-center justify-between gap-4 flex-wrap md:flex-nowrap">
-                  <div>
-                    <span className="text-amber-600 font-sans tracking-widest text-[11px] uppercase font-bold">
-                      {activeTrack.id}
-                    </span>
-                    <h3 className="font-display text-stone-900 text-2xl md:text-3xl font-bold leading-tight mt-1">
-                      {activeTrack.title}
-                    </h3>
+            <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 mt-4">
+              {activeTrack ? (
+                <div className="flex flex-col">
+                  <div className="mb-4 flex items-center justify-between gap-3 flex-wrap md:flex-nowrap">
+                    <div>
+                      <span className="text-amber-600 font-sans tracking-widest text-[11px] uppercase font-bold">
+                        {activeTrack.id}
+                      </span>
+                      <h3 className="font-display text-stone-900 text-xl md:text-2xl font-bold leading-tight mt-1">
+                        {activeTrack.title}
+                      </h3>
+                    </div>
+                    {journeyUrl && (
+                      <a
+                        href={journeyUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 px-4 py-2 border border-stone-850 text-stone-850 bg-transparent hover:bg-amber-500 hover:border-amber-500 hover:text-stone-950 transition-all duration-200 text-xs tracking-widest uppercase font-bold rounded-full whitespace-nowrap shadow-sm"
+                      >
+                        Start Journey ↗
+                      </a>
+                    )}
                   </div>
-                  {journeyUrl && (
-                    <a
-                      href={journeyUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 px-4 py-2 border border-stone-850 text-stone-850 bg-transparent hover:bg-amber-500 hover:border-amber-500 hover:text-stone-950 transition-all duration-200 text-xs tracking-widest uppercase font-bold rounded-full whitespace-nowrap shadow-sm"
-                    >
-                      Start Journey ↗
-                    </a>
+                  {journeyTruncated && (
+                    <p className="mb-4 text-[11px] uppercase tracking-[0.2em] font-medium text-amber-600/80 font-sans text-center md:text-left">
+                      Showing the optimal first 10 stops on your Kuantan
+                      itinerary.
+                    </p>
+                  )}
+                  {activeLocations.length > 0 ? (
+                    <ol className="relative flex flex-col gap-4">
+                      {activeLocations.map((location, idx) => {
+                        const isLast = idx === activeLocations.length - 1;
+                        const details = getLocationDetails(location);
+                        return (
+                          <li key={location} className="relative flex gap-5">
+                            <div className="flex flex-col items-center">
+                              <span className="flex items-center justify-center w-10 h-10 rounded-full bg-stone-900 text-[#F5F0E8] font-sans text-[10px] uppercase tracking-widest font-bold shrink-0">
+                                {String(idx + 1).padStart(2, "0")}
+                              </span>
+                              {!isLast && (
+                                <span className="mt-1 w-px flex-1 border-l border-dashed border-stone-300" />
+                              )}
+                            </div>
+                            <div className="flex flex-col pt-1 pb-4">
+                              <span className="text-amber-600 font-sans tracking-widest text-[11px] uppercase font-bold mb-1">
+                                {details.time}
+                              </span>
+                              <p className="text-stone-800 font-serif text-sm md:text-base leading-relaxed">
+                                {details.activity}
+                              </p>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ol>
+                  ) : (
+                    <p className="text-stone-500 font-serif text-sm leading-relaxed text-center py-6">
+                      No pinned frames for this trail yet — be the first to
+                      submit.
+                    </p>
                   )}
                 </div>
-                {journeyTruncated && (
-                  <p className="mb-6 text-[11px] uppercase tracking-[0.2em] font-medium text-amber-600/80 font-sans text-center md:text-left">
-                    Showing the optimal first 10 stops on your Kuantan
-                    itinerary.
+              ) : (
+                <div className="flex flex-col items-center justify-center text-center py-6 md:py-8">
+                  <p className="font-display text-stone-700 text-lg md:text-xl font-bold mb-2">
+                    A bird&apos;s-eye view of Kuantan
                   </p>
-                )}
-                {activeLocations.length > 0 ? (
-                  <ol className="relative flex flex-col gap-6">
-                    {activeLocations.map((location, idx) => {
-                      const isLast = idx === activeLocations.length - 1;
-                      const details = getLocationDetails(location);
-                      return (
-                        <li key={location} className="relative flex gap-5">
-                          <div className="flex flex-col items-center">
-                            <span className="flex items-center justify-center w-12 h-12 rounded-full bg-stone-900 text-[#F5F0E8] font-sans text-[10px] uppercase tracking-widest font-bold shrink-0">
-                              {String(idx + 1).padStart(2, "0")}
-                            </span>
-                            {!isLast && (
-                              <span className="mt-1 w-px flex-1 border-l border-dashed border-stone-300" />
-                            )}
-                          </div>
-                          <div className="flex flex-col pt-1 pb-6">
-                            <span className="text-amber-600 font-sans tracking-widest text-[11px] uppercase font-bold mb-1">
-                              {details.time}
-                            </span>
-                            <p className="text-stone-800 font-serif text-base md:text-lg leading-relaxed">
-                              {details.activity}
-                            </p>
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ol>
-                ) : (
-                  <p className="text-stone-500 font-serif text-sm leading-relaxed text-center py-6">
-                    No pinned frames for this trail yet — be the first to
-                    submit.
+                  <p className="text-stone-500 font-serif text-sm leading-relaxed max-w-sm">
+                    Every pinned frame is plotted above. Select a curated trail
+                    on the left to chart its itinerary and focus the atlas.
                   </p>
-                )}
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center text-center py-6 md:py-8">
-                <p className="font-display text-stone-700 text-xl md:text-2xl font-bold mb-2">
-                  A bird&apos;s-eye view of Kuantan
-                </p>
-                <p className="text-stone-500 font-serif text-sm leading-relaxed max-w-sm">
-                  Every pinned frame is plotted above. Select a curated trail
-                  on the left to chart its itinerary and focus the atlas.
-                </p>
-              </div>
-            )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

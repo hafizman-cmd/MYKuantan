@@ -2,19 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { createClient, type Session } from "@supabase/supabase-js";
-
-const supabaseClient = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-  {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true,
-    },
-  }
-);
+import { type Session } from "@supabase/supabase-js";
+import { supabaseClient } from "@/lib/supabase/client";
 
 const SUPABASE_PROFILES_TABLE = "profiles";
 
@@ -24,10 +13,10 @@ interface ContributorProfile {
 }
 
 const NAV_LINKS = [
-  { label: "Lookbook", href: "#lookbook" },
-  { label: "Stories", href: "#stories" },
-  { label: "Gallery", href: "#gallery" },
-  { label: "Visit", href: "#visit" },
+  { label: "Lookbook", href: "/" },
+  { label: "Stories", href: "/stories" },
+  { label: "Gallery", href: "/gallery" },
+  { label: "Visit", href: "/visit" },
 ];
 
 export default function Navbar() {
@@ -147,12 +136,12 @@ export default function Navbar() {
       <nav className="w-full max-w-[1600px] mx-auto px-6 lg:px-16 h-20 md:h-24 flex items-center justify-between">
         {/* LEFT: brand + contributor handle badge */}
         <div className="flex items-center gap-3 md:gap-4">
-          <a
-            href="#top"
+          <Link
+            href="/"
             className="font-display font-extrabold tracking-tight text-stone-900 text-3xl md:text-4xl leading-none select-none"
           >
             Kuantan
-          </a>
+          </Link>
           {handleBadge}
         </div>
 
@@ -161,12 +150,12 @@ export default function Navbar() {
           <ul className="hidden md:flex items-center gap-8">
             {NAV_LINKS.map((link) => (
               <li key={link.href}>
-                <a
+                <Link
                   href={link.href}
                   className="text-[13px] uppercase tracking-[0.18em] text-stone-700 hover:text-[#0F3460] transition-colors duration-300 font-medium"
                 >
                   {link.label}
-                </a>
+                </Link>
               </li>
             ))}
           </ul>
@@ -201,13 +190,13 @@ export default function Navbar() {
             )}
             {NAV_LINKS.map((link) => (
               <li key={link.href}>
-                <a
+                <Link
                   href={link.href}
                   onClick={() => setIsOpen(false)}
                   className="block w-full py-3 text-sm uppercase tracking-[0.18em] text-stone-700 hover:text-[#0F3460] transition-colors duration-300 font-medium"
                 >
                   {link.label}
-                </a>
+                </Link>
               </li>
             ))}
             <li className="mt-2">

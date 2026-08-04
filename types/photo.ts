@@ -10,4 +10,5 @@ export interface Photo {
   created_at: string;
   latitude: number | null;
   longitude: number | null;
+  likes_count?: number | null;
 }

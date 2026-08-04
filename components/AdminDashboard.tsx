@@ -198,11 +198,10 @@ export default function AdminDashboard({
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
-              className={`relative flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${
-                tab === t.id
+              className={`relative flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${tab === t.id
                   ? "text-[#F5F0E8]"
                   : "text-stone-400 hover:text-[#F5F0E8] hover:bg-white/5"
-              }`}
+                }`}
             >
               {tab === t.id && (
                 <motion.span
@@ -296,11 +295,10 @@ export default function AdminDashboard({
                     <button
                       key={r.id}
                       onClick={() => setRange(r.id)}
-                      className={`relative rounded-full px-4 py-1.5 text-xs font-semibold transition-colors ${
-                        range === r.id
+                      className={`relative rounded-full px-4 py-1.5 text-xs font-semibold transition-colors ${range === r.id
                           ? "text-[#F5F0E8]"
                           : "text-stone-600 hover:text-stone-900"
-                      }`}
+                        }`}
                     >
                       {range === r.id && (
                         <motion.span
@@ -874,7 +872,7 @@ function ActiveArchive({
                   alt={p.caption || p.location}
                   fill
                   sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                  className="object-cover transition-transform duration-[1.2s] ease-out group-hover:scale-105"
+                  className="object-cover transition-transform duration-[1.5s] ease-out group-hover:scale-105"
                 />
                 <span className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />
 
@@ -984,7 +982,7 @@ function ActiveArchive({
                         >
                           {[
                             ...(draft.location &&
-                            !KUANTAN_LOCATIONS.some((l) => l.name === draft.location)
+                              !KUANTAN_LOCATIONS.some((l) => l.name === draft.location)
                               ? [{ name: draft.location }]
                               : []),
                             ...KUANTAN_LOCATIONS,

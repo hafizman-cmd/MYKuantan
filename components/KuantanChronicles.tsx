@@ -85,54 +85,52 @@ export default function KuantanChronicles() {
   }, [hasStarted]);
 
   return (
-    <section id="stories" className="w-full block bg-[#0F3460]">
-      <div className="w-full max-w-[1600px] mx-auto px-6 lg:px-16 pt-20 md:pt-28 pb-20 md:pb-28">
-        <div className="w-full max-w-3xl flex flex-col items-center justify-center text-center mx-auto mb-12 md:mb-16">
-          <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#F5F0E8]/25 bg-white/5 px-5 py-2 text-[11px] uppercase tracking-[0.3em] text-[#F5F0E8]/80 backdrop-blur-md">
-            The Chronicles
-          </span>
-          <h2 className="font-display text-[#F5F0E8] text-4xl md:text-6xl font-extrabold leading-[0.95] tracking-tight">
-            Stories of Kuantan
-          </h2>
-          <p className="mt-6 max-w-xl text-base leading-relaxed text-[#F5F0E8]/70 font-light">
-            A museum-grade timeline of the coastal capital — printed line by
-            line as you arrive.
-          </p>
-        </div>
+    <section
+      id="stories"
+      className="w-full max-w-6xl mx-auto px-6 pt-28 md:pt-32 pb-8 flex flex-col justify-start items-center min-h-screen overflow-visible block bg-[#FAF8F5] text-stone-900"
+    >
+      <div className="w-full mb-6 text-center overflow-visible z-10">
+        <h2 className="text-3xl sm:text-4xl font-serif text-stone-900 tracking-tight mb-2 block">
+          Stories of Kuantan
+        </h2>
+        <p className="text-xs sm:text-sm text-stone-600 max-w-md mx-auto block leading-relaxed">
+          A museum-grade timeline of the coastal capital — printed line by
+          line as you arrive.
+        </p>
+      </div>
 
-        <div
-          ref={containerRef}
-          className="mx-auto max-w-3xl bg-[#FAF8F5] rounded-2xl border border-stone-200 shadow-[0_24px_80px_rgba(0,0,0,0.18)] overflow-hidden"
-        >
-          {CHRONICLES.map((item, i) => {
-            const isActive = i === activeEra;
-            const isComplete = i < activeEra;
-            return (
-              <article
-                key={item.era}
-                className={`px-6 md:px-10 py-8 md:py-10 border-b border-stone-200 last:border-b-0 transition-opacity duration-500 ${
-                  isActive || isComplete ? "opacity-100" : "opacity-40"
-                }`}
-              >
-                <p className="text-amber-600 font-sans tracking-widest text-[11px] uppercase font-bold mb-2">
-                  {item.era}
-                </p>
-                <h3 className="font-display text-stone-900 text-2xl md:text-3xl font-bold leading-tight mb-3">
-                  {item.title}
-                </h3>
-                <p className="text-stone-800 font-serif text-base md:text-lg leading-relaxed">
-                  {typed[i]}
-                  {isActive && hasStarted && (
-                    <span
-                      aria-hidden
-                      className="inline-block align-middle w-2 h-4 md:h-5 ml-1 bg-amber-600 animate-pulse"
-                    />
-                  )}
-                </p>
-              </article>
-            );
-          })}
-        </div>
+      <div
+        ref={containerRef}
+        className="w-full max-w-3xl h-[52vh] max-h-[520px] overflow-y-auto pr-3 custom-scrollbar snap-y snap-mandatory rounded-2xl bg-white/80 p-4 border border-stone-200/80 shadow-sm space-y-4"
+      >
+        {CHRONICLES.map((item, i) => {
+          const isActive = i === activeEra;
+          const isComplete = i < activeEra;
+          return (
+            <article
+              key={item.era}
+              className={`snap-start snap-always w-full rounded-xl bg-white p-6 border border-stone-200/80 shadow-sm hover:border-stone-300 transition-all duration-200 ${
+                isActive || isComplete ? "opacity-100" : "opacity-60"
+              }`}
+            >
+              <p className="text-xs font-mono font-semibold tracking-wider text-amber-700 uppercase mb-1">
+                {item.era}
+              </p>
+              <h3 className="text-xl sm:text-2xl font-serif text-stone-900 mb-3">
+                {item.title}
+              </h3>
+              <p className="text-xs sm:text-sm text-stone-600 leading-relaxed">
+                {typed[i]}
+                {isActive && hasStarted && (
+                  <span
+                    aria-hidden
+                    className="inline-block align-middle w-2 h-4 md:h-5 ml-1 bg-amber-600 animate-pulse"
+                  />
+                )}
+              </p>
+            </article>
+          );
+        })}
       </div>
     </section>
   );

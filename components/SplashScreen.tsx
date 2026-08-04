@@ -1,52 +1,70 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
-export default function SplashScreen() {
+type SplashScreenProps = {
+  onComplete?: () => void;
+};
+
+export default function SplashScreen({ onComplete }: SplashScreenProps) {
   const [isRendered, setIsRendered] = useState(true);
-  const [isMobile, setIsMobile] = useState<boolean | null>(null);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [progressComplete, setProgressComplete] = useState(false);
 
   useEffect(() => {
-    // 1. Check if the user has already seen the intro
     const hasSeenSplash = sessionStorage.getItem("mykuantan_splash_seen");
     if (hasSeenSplash) {
       setIsRendered(false);
+      onComplete?.();
       return;
     }
 
-    // 2. Set device state instantly on mount
-    setIsMobile(window.innerWidth < 768);
+    const progressTimer = setTimeout(() => {
+      setProgressComplete(true);
+    }, 1300);
 
-    // 3. Perfect 4-second hold timeline
-    timeoutRef.current = setTimeout(() => {
+    const exitTimer = setTimeout(() => {
       setIsRendered(false);
       sessionStorage.setItem("mykuantan_splash_seen", "true");
-    }, 4000);
+      onComplete?.();
+    }, 1900);
 
     return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      clearTimeout(progressTimer);
+      clearTimeout(exitTimer);
     };
-  }, []);
-
-  if (!isRendered) {
-    return null;
-  }
+  }, [onComplete]);
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#FAF8F5]">
-      {/* Only render the player once device width is verified */}
-      {isMobile !== null && (
-        <video
-          src={isMobile ? "/loading_mobile.mp4" : "/loading_desktop.mp4"}
-          autoPlay
-          muted
-          playsInline
-          loop
-          preload="auto" // 🔥 CRUCIAL: Forces the device to cache and decode frames instantly
-          className="w-full h-full object-cover"
-        />
+    <AnimatePresence>
+      {isRendered && (
+        <motion.div
+          className="fixed inset-0 z-[2000] flex flex-col items-center justify-center bg-[#FAF8F5]"
+          initial={{ opacity: 1 }}
+          animate={{
+            opacity: progressComplete ? 0 : 1,
+          }}
+          transition={{ duration: 0.5, ease: "easeInOut" }}
+        >
+          <div className="flex flex-col items-center justify-center text-center">
+            <span className="text-[11px] text-stone-400 font-mono mb-2 tracking-[0.3em] uppercase">
+              MYKUANTAN // EDITORIAL ARCHIVE
+            </span>
+            <span className="text-xs md:text-sm font-mono tracking-[0.2em] text-stone-800">
+              3.8077° N, 103.3260° E
+            </span>
+
+            <div className="w-48 md:w-64 h-[1.5px] bg-stone-200/80 overflow-hidden relative mt-6">
+              <motion.div
+                className="h-full bg-[#0F3460]"
+                initial={{ width: "0%" }}
+                animate={{ width: "100%" }}
+                transition={{ duration: 1.2, ease: "easeInOut" }}
+              />
+            </div>
+          </div>
+        </motion.div>
       )}
-    </div>
+    </AnimatePresence>
   );
 }

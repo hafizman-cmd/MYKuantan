@@ -2,7 +2,7 @@ import { supabase, SUPABASE_PHOTOS_TABLE } from "./supabase";
 import type { Photo } from "@/types/photo";
 
 const SELECT_COLS =
-  "id,image_url,photographer,location,caption,status,created_at,latitude,longitude";
+  "id,image_url,photographer,location,caption,status,created_at,latitude,longitude,likes_count";
 
 export async function fetchLatestPhotos(limit: number): Promise<Photo[]> {
   const { data, error } = await supabase

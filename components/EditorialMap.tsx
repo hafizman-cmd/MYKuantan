@@ -52,12 +52,14 @@ interface EditorialMapProps {
   activeLocation: string | null;
   photos: Photo[];
   activeRouteFilter?: RouteCategory | null;
+  fill?: boolean;
 }
 
 export default function EditorialMap({
   activeLocation,
   photos,
   activeRouteFilter = null,
+  fill = false,
 }: EditorialMapProps) {
   const [isMounted, setIsMounted] = useState(false);
   useEffect(() => {
@@ -70,14 +72,20 @@ export default function EditorialMap({
     return locationRouteMap[photo.location] === activeRouteFilter;
   });
 
+  const containerClass = fill
+    ? "w-full h-full overflow-hidden bg-[#0F3460]/10 animate-pulse"
+    : "w-full h-[65vh] md:h-[78vh] rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl border border-slate-800/10 bg-[#0F3460]/10 animate-pulse";
+
   if (!isMounted) {
-    return (
-      <div className="w-full h-[65vh] md:h-[78vh] rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl border border-slate-800/10 bg-[#0F3460]/10 animate-pulse" />
-    );
+    return <div className={containerClass} />;
   }
 
+  const liveClass = fill
+    ? "w-full h-full overflow-hidden bg-slate-950 relative z-0 isolate"
+    : "w-full h-[65vh] md:h-[78vh] rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl border border-slate-800/10 bg-slate-950 relative z-0 isolate";
+
   return (
-    <div className="w-full h-[65vh] md:h-[78vh] rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl border border-slate-800/10 bg-slate-950 relative z-0 isolate">
+    <div className={liveClass}>
       <MapContainer
         center={defaultCenter}
         zoom={12}

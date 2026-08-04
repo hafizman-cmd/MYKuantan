@@ -118,7 +118,7 @@ export default function Hero({ latestPhotos }: HeroProps) {
 
   return (
     <section id="lookbook" className="w-full overflow-hidden block">
-      <div className="w-full max-w-[1600px] mx-auto px-6 lg:px-16 pt-44 md:pt-52 pb-20 md:pb-28">
+      <div className="w-full max-w-[1600px] mx-auto px-6 lg:px-16 pt-20 pb-6">
         <div className="w-full max-w-3xl flex flex-col items-center justify-center text-center mx-auto mb-12">
           {coastalData && (
             <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-1 mb-6 text-[10px] uppercase tracking-[0.25em] animate-fade-in">
@@ -152,15 +152,12 @@ export default function Hero({ latestPhotos }: HeroProps) {
               </div>
             </div>
           )}
-          <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#0F3460]/20 bg-white/40 px-5 py-2 text-[11px] uppercase tracking-[0.3em] text-[#0F3460] backdrop-blur-md">
-            Pahang · Malaysia · 3.5°N
-          </span>
-          <h1 className="font-display text-stone-900 text-5xl md:text-7xl lg:text-8xl font-extrabold leading-[0.95] tracking-tight">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-serif tracking-tight text-stone-900 leading-tight mb-3">
             Where the Sea
             <br />
             <span className="italic text-[#0F3460] font-semibold">Remembers.</span>
           </h1>
-          <p className="mt-8 max-w-xl text-base md:text-lg leading-relaxed text-stone-600 font-light">
+          <p className="text-xs sm:text-sm text-stone-600 max-w-lg mx-auto mb-6 leading-relaxed">
             An editorial lookbook tracing light, tide, and tradition across
             Kuantan — the quiet capital of Pahang, where the South China Sea
             outlines every silhouette.
@@ -168,7 +165,7 @@ export default function Hero({ latestPhotos }: HeroProps) {
         </div>
 
         {/* Horizontal Accordion Slider */}
-        <div className="w-full flex h-[60vh] min-h-[440px] md:h-[72vh] md:min-h-[560px] gap-3 md:gap-4">
+        <div className="w-full max-w-6xl mx-auto h-[380px] md:h-[420px] overflow-hidden flex gap-3 md:gap-4">
           {slides.map((photo, i) => {
             const isActive = i === active;
             return (
