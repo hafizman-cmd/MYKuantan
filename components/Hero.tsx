@@ -191,47 +191,50 @@ export default function Hero({ latestPhotos }: HeroProps) {
                 {/* gradient veil */}
                 <span className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-black/5" />
 
-                {/* collapsed caption line — visible only when this panel is NOT active.
-                    Mobile: book-spine rotation along the vertical axis.
-                    Desktop: standard horizontal letterboxing at the bottom. */}
-                {!isActive && (
-                  <div className="absolute inset-0 flex items-center justify-center px-2 md:px-3 md:items-end md:justify-center md:text-center pointer-events-none">
-                    <span
-                      className={`font-display text-[#F5F0E8] font-bold drop-shadow-lg break-words leading-relaxed max-w-[90%] ${
-                        isActive
-                          ? "rotate-0 whitespace-normal text-sm md:text-xl"
-                          : "-rotate-90 md:rotate-0 origin-center whitespace-nowrap md:whitespace-normal absolute md:relative tracking-widest md:tracking-wide uppercase md:normal-case text-xs md:text-sm md:text-xl"
-                      }`}
-                    >
-                      {photo.location}
-                    </span>
-                  </div>
-                )}
-
-                {/* expanded description grid — fades out when collapsed */}
-                <AnimatePresence>
-                  {isActive && (
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ duration: 0.5, ease: "easeOut" }}
-                      className="absolute inset-0 flex flex-col justify-end p-4 md:p-10 lg:p-14"
-                    >
-                      <div className="max-w-md text-left">
-                        <span className="hidden md:block text-[11px] uppercase tracking-[0.3em] text-[#F5F0E8]/80 mb-4">
+                {/* text container — location title transitions between vertical (collapsed)
+                     and horizontal (expanded); photographer + caption fade in only when active.
+                     overflow-hidden on the card button ensures rotated text never bleeds outside. */}
+                <div className="absolute bottom-4 left-4 right-4 flex flex-col justify-end items-start pointer-events-none transition-all duration-300">
+                  <AnimatePresence>
+                    {isActive && (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.5, ease: "easeOut" }}
+                        className="max-w-md text-left w-full"
+                      >
+                        <span className="hidden md:block text-[11px] uppercase tracking-[0.3em] text-[#F5F0E8]/80 mb-2 md:mb-4">
                           {photo.photographer}
                         </span>
-                        <h2 className="font-display text-[#F5F0E8] text-sm md:text-xl font-bold leading-tight mb-2 md:mb-4 break-words whitespace-normal leading-relaxed max-w-[85%]">
-                          {photo.location}
-                        </h2>
-                        <p className="hidden md:block text-xs text-white/80 mt-1 leading-relaxed break-words whitespace-normal max-w-[85%]">
-                          {photo.caption}
-                        </p>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  <span
+                    className={
+                      isActive
+                        ? "[writing-mode:horizontal-tb] rotate-0 text-lg sm:text-2xl font-serif text-white tracking-tight leading-snug"
+                        : "[writing-mode:vertical-rl] rotate-180 text-xs tracking-wider uppercase text-stone-200/90 whitespace-nowrap transition-all duration-300 select-none"
+                    }
+                  >
+                    {photo.location}
+                  </span>
+
+                  <AnimatePresence>
+                    {isActive && (
+                      <motion.p
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.5, ease: "easeOut" }}
+                        className="hidden md:block text-xs text-white/80 mt-2 md:mt-4 leading-relaxed break-words whitespace-normal max-w-[85%]"
+                      >
+                        {photo.caption}
+                      </motion.p>
+                    )}
+                  </AnimatePresence>
+                </div>
               </button>
             );
           })}
