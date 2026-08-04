@@ -97,11 +97,11 @@ export default function VisitMiniMap({
   const pinIsActive = activeRouteFilter !== null;
 
   return (
-    <div className="w-full h-full">
+    <div className="w-full h-full relative z-0 isolate">
       <MapContainer
         center={KUANTAN_CENTER}
         zoom={11}
-        className="w-full h-full"
+        className="w-full h-full relative z-0 isolate"
         zoomControl={false}
         scrollWheelZoom={false}
       >

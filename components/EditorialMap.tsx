@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   MapContainer,
   TileLayer,
@@ -47,29 +47,41 @@ function MapUpdater({ activeLocation }: { activeLocation: string | null }) {
   return null;
 }
 
+// 4. Main Exported Map Component Container
 interface EditorialMapProps {
   activeLocation: string | null;
   photos: Photo[];
   activeRouteFilter?: RouteCategory | null;
 }
 
-// 4. Main Exported Map Component Container
 export default function EditorialMap({
   activeLocation,
   photos,
   activeRouteFilter = null,
 }: EditorialMapProps) {
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   const defaultCenter: [number, number] = [3.808, 103.325];
   const filteredPhotos = photos.filter((photo) => {
     if (!activeRouteFilter) return true;
     return locationRouteMap[photo.location] === activeRouteFilter;
   });
+
+  if (!isMounted) {
+    return (
+      <div className="w-full h-[65vh] md:h-[78vh] rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl border border-slate-800/10 bg-[#0F3460]/10 animate-pulse" />
+    );
+  }
+
   return (
-    <div className="w-full h-[65vh] md:h-[78vh] rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl border border-slate-800/10 bg-slate-950">
+    <div className="w-full h-[65vh] md:h-[78vh] rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl border border-slate-800/10 bg-slate-950 relative z-0 isolate">
       <MapContainer
         center={defaultCenter}
         zoom={12}
-        className="w-full h-full"
+        className="w-full h-full relative z-0 isolate"
         zoomControl
         dragging={typeof window !== "undefined" && window.innerWidth > 768}
         touchZoom="center"

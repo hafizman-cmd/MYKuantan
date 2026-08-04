@@ -3,12 +3,25 @@
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { createClient } from "@supabase/supabase-js";
 import { animate, AnimatePresence, motion } from "framer-motion";
 import type { Photo } from "@/types/photo";
 import { supabase, SUPABASE_PHOTOS_TABLE } from "@/lib/supabase";
 import { updatePhotoDetails, deletePhotoPermanently } from "@/lib/api";
 import { KUANTAN_LOCATIONS, getCoordinatesByName } from "@/lib/locations";
 import { toTitleCase } from "@/lib/format";
+
+const supabaseAuthClient = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    },
+  }
+);
 
 type Tab = "overview" | "moderation" | "analytics" | "archive";
 type Range = "day" | "week" | "month";
@@ -143,7 +156,7 @@ export default function AdminDashboard({
   };
 
   const handleSignOut = async () => {
-    await fetch("/api/admin/auth", { method: "DELETE" });
+    await supabaseAuthClient.auth.signOut();
     window.location.reload();
   };
 

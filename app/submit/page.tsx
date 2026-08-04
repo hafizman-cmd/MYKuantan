@@ -30,10 +30,17 @@ const supabaseClient = createClient(
 );
 
 const SUPABASE_STORAGE_BUCKET = "kuantan-photos";
+const SUPABASE_PROFILES_TABLE = "profiles";
 const COMPRESS_MAX_DIM = 1920;
 const COMPRESS_QUALITY = 0.8;
 
 type Status = "idle" | "compressing" | "submitting" | "success" | "error";
+type AuthMode = "signin" | "signup";
+
+interface ContributorProfile {
+  username: string;
+  display_name: string | null;
+}
 
 async function compressImage(
   file: File,
@@ -119,14 +126,40 @@ function Field({
         {required ? <span className="text-[#0F3460]"> *</span> : null}
       </span>
       {children}
-    </label>
-  );
+      </label>
+    );
+}
+
+function sanitizeHandle(raw: string): string {
+  return raw
+    .trim()
+    .toLowerCase()
+    .replace(/^@+/, "")
+    .replace(/[^a-z0-9_.]/g, "")
+    .slice(0, 32);
 }
 
 export default function SubmitPage() {
   const router = useRouter();
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(false);
+
+  // Auth view state
+  const [authMode, setAuthMode] = useState<AuthMode>("signin");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState(false);
+
+  // Profile onboarding state
+  const [profile, setProfile] = useState<ContributorProfile | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [handleInput, setHandleInput] = useState("");
+  const [handleSaving, setHandleSaving] = useState(false);
+  const [handleError, setHandleError] = useState<string | null>(null);
+  const loadedProfileForRef = useRef<string | null>(null);
+
+  // Submission form state
   const [displayName, setDisplayName] = useState("");
   const [location, setLocation] = useState("");
   const [coords, setCoords] = useState<[number, number] | null>(null);
@@ -136,10 +169,8 @@ export default function SubmitPage() {
   const [dragging, setDragging] = useState(false);
   const [status, setStatus] = useState<Status>("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [oauthLoading, setOauthLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const previewUrlRef = useRef<string | null>(null);
-  const loadedUserIdRef = useRef<string | null>(null);
 
   const user = session?.user ?? null;
 
@@ -165,18 +196,52 @@ export default function SubmitPage() {
     };
   }, []);
 
+  // Fetch contributor profile once the user is known. If no profile (or empty
+  // username) we surface the handle-onboarding card. The stored '@username'
+  // pre-populates + locks the Contributor Display Name field.
   useEffect(() => {
-    if (!user) return;
-    if (loadedUserIdRef.current === user.id) return;
-    loadedUserIdRef.current = user.id;
-    const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
-    const raw =
-      typeof meta.full_name === "string"
-        ? meta.full_name
-        : typeof meta.name === "string"
-          ? meta.name
-          : "";
-    setDisplayName(toTitleCase(raw));
+    if (!user) {
+      loadedProfileForRef.current = null;
+      setProfile(null);
+      setProfileLoading(false);
+      return;
+    }
+    if (loadedProfileForRef.current === user.id) return;
+    loadedProfileForRef.current = user.id;
+    setProfileLoading(true);
+    setProfile(null);
+
+    supabaseClient
+      .from(SUPABASE_PROFILES_TABLE)
+      .select("username, display_name")
+      .eq("id", user.id)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (error) {
+          console.error("profile fetch error", error);
+        }
+        if (data && typeof data.username === "string" && data.username) {
+          const username = data.username;
+          const display_name =
+            typeof data.display_name === "string" ? data.display_name : null;
+          setProfile({ username, display_name });
+          setDisplayName(
+            display_name || toTitleCase(username.replace(/[_./-]/g, " "))
+          );
+        } else {
+          setProfile(null);
+          // fall back to OAuth/metadata name just for the onboarding hint
+          const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
+          const raw =
+            typeof meta.full_name === "string"
+              ? meta.full_name
+              : typeof meta.name === "string"
+                ? meta.name
+                : "";
+          setHandleInput(sanitizeHandle(raw || user.email?.split("@")[0] || ""));
+        }
+        setProfileLoading(false);
+      });
   }, [user]);
 
   const revokePreview = useCallback(() => {
@@ -226,7 +291,7 @@ export default function SubmitPage() {
     handleFile(e.target.files?.[0] ?? null);
   };
 
-  const handleSignIn = async () => {
+  const handleGoogleSignIn = async () => {
     setOauthLoading(true);
     setErrorMsg(null);
     try {
@@ -245,10 +310,89 @@ export default function SubmitPage() {
     }
   };
 
+  const handleEmailAuth = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setAuthLoading(true);
+    setErrorMsg(null);
+    try {
+      const trimmedEmail = email.trim();
+      if (!trimmedEmail || !password) {
+        throw new Error("Email and password are required.");
+      }
+      const result =
+        authMode === "signin"
+          ? await supabaseClient.auth.signInWithPassword({
+              email: trimmedEmail,
+              password,
+            })
+          : await supabaseClient.auth.signUp({
+              email: trimmedEmail,
+              password,
+            });
+      if (result.error) throw result.error;
+      // Session state will arrive via onAuthStateChange. Clear password field.
+      setPassword("");
+    } catch (err) {
+      setAuthLoading(false);
+      setErrorMsg(
+        err instanceof Error
+          ? err.message
+          : authMode === "signin"
+            ? "Sign in failed. Please try again."
+            : "Sign up failed. Please try again."
+      );
+    }
+  };
+
+  const handleSaveHandle = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!user) return;
+    const username = sanitizeHandle(handleInput);
+    if (!username || username.length < 3) {
+      setHandleError("Handle must be at least 3 characters (letters, numbers, _ .).");
+      return;
+    }
+    setHandleSaving(true);
+    setHandleError(null);
+    try {
+      const display_name = toTitleCase(username.replace(/[_./-]/g, " "));
+      const { data, error } = await supabaseClient
+        .from(SUPABASE_PROFILES_TABLE)
+        .upsert(
+          { id: user.id, username, display_name },
+          { onConflict: "id" }
+        )
+        .select("username, display_name")
+        .single();
+      if (error) throw error;
+      if (data) {
+        setProfile({
+          username: data.username,
+          display_name: data.display_name,
+        });
+        setDisplayName(data.display_name || display_name);
+      }
+    } catch (err) {
+      console.error("handle save error", err);
+      setHandleError(
+        err instanceof Error
+          ? err.message
+          : "Could not save handle. Try another."
+      );
+    } finally {
+      setHandleSaving(false);
+    }
+  };
+
   const handleSignOut = async () => {
     await supabaseClient.auth.signOut();
-    loadedUserIdRef.current = null;
+    loadedProfileForRef.current = null;
+    setProfile(null);
     setDisplayName("");
+    setEmail("");
+    setPassword("");
+    setErrorMsg(null);
+    setAuthMode("signin");
     resetForm();
   };
 
@@ -356,43 +500,133 @@ export default function SubmitPage() {
           </a>
         </header>
         <main className="flex flex-1 items-center justify-center px-6 py-16 md:py-24">
-          <div className="w-full max-w-md text-center">
-            <span className="mb-4 block text-[11px] font-semibold uppercase tracking-[0.3em] text-[#0F3460]">
-              Contributor Access
-            </span>
-            <h1 className="mb-4 font-display text-4xl font-extrabold leading-tight text-stone-900 md:text-5xl">
-              Contribute to the Archive
-            </h1>
-            <p className="mx-auto mb-10 max-w-sm text-base leading-relaxed text-stone-600 md:text-lg">
-              Sign in with Google to submit your frames of Kuantan. Each
-              contribution is reviewed before it joins the lookbook.
-            </p>
+          <div className="w-full max-w-md">
+            <div className="mb-8 text-center">
+              <span className="mb-4 block text-[11px] font-semibold uppercase tracking-[0.3em] text-[#0F3460]">
+                Contributor Access
+              </span>
+              <h1 className="mb-4 font-display text-4xl font-extrabold leading-tight text-stone-900 md:text-5xl">
+                Contribute to the Archive
+              </h1>
+              <p className="mx-auto mb-10 max-w-sm text-base leading-relaxed text-stone-600 md:text-lg">
+                Sign in to submit your frames of Kuantan. Each contribution is
+                reviewed before it joins the lookbook.
+              </p>
+            </div>
+
+            {/* Sign In / Create Account toggle */}
+            <div className="mb-6 grid grid-cols-2 gap-1 rounded-full border border-stone-200 bg-white/70 p-1 backdrop-blur-sm">
+              {(["signin", "signup"] as AuthMode[]).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => {
+                    setAuthMode(mode);
+                    setErrorMsg(null);
+                  }}
+                  className={`rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] transition-colors ${
+                    authMode === mode
+                      ? "bg-[#0F3460] text-[#F5F0E8]"
+                      : "text-stone-600 hover:text-[#0F3460]"
+                  }`}
+                >
+                  {mode === "signin" ? "Sign In" : "Create Account"}
+                </button>
+              ))}
+            </div>
+
+            <form onSubmit={handleEmailAuth} className="space-y-4">
+              <Field label="Email" required>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  required
+                  autoComplete="email"
+                  className={inputClass}
+                />
+              </Field>
+              <Field label="Password" required>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                  autoComplete={
+                    authMode === "signin" ? "current-password" : "new-password"
+                  }
+                  className={inputClass}
+                />
+              </Field>
+              <button
+                type="submit"
+                disabled={authLoading}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#0F3460] px-7 py-3.5 text-[12px] font-semibold uppercase tracking-[0.2em] text-[#F5F0E8] transition-colors hover:bg-[#1A4A7A] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {authLoading
+                  ? "Please wait…"
+                  : authMode === "signin"
+                    ? "Sign In"
+                    : "Sign Up"}
+              </button>
+            </form>
+
+            {/* Divider */}
+            <div className="my-6 flex items-center gap-4">
+              <span className="h-px flex-1 bg-stone-200" />
+              <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-400">
+                or
+              </span>
+              <span className="h-px flex-1 bg-stone-200" />
+            </div>
+
             <button
               type="button"
-              onClick={handleSignIn}
+              onClick={handleGoogleSignIn}
               disabled={oauthLoading}
-              className="inline-flex items-center gap-3 rounded-full border border-stone-300 bg-white px-7 py-3.5 text-[13px] font-semibold uppercase tracking-[0.18em] text-stone-800 transition-all duration-300 hover:border-[#0F3460] hover:text-[#0F3460] hover:shadow-[0_8px_30px_rgba(15,52,96,0.12)] disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex w-full items-center justify-center gap-3 rounded-full border border-stone-300 bg-white px-7 py-3.5 text-[13px] font-semibold uppercase tracking-[0.18em] text-stone-800 transition-all duration-300 hover:border-[#0F3460] hover:text-[#0F3460] hover:shadow-[0_8px_30px_rgba(15,52,96,0.12)] disabled:cursor-not-allowed disabled:opacity-60"
             >
               <GoogleGIcon />
               {oauthLoading ? "Redirecting…" : "Continue with Google"}
             </button>
+
             {errorMsg && (
               <p className="mt-6 break-words rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-relaxed text-red-700">
                 {errorMsg}
               </p>
             )}
-            <a
-              href="/"
-              className="mt-10 inline-block text-[12px] font-semibold uppercase tracking-[0.2em] text-stone-500 transition-colors hover:text-[#0F3460]"
-            >
-              ← Back to lookbook
-            </a>
+            <div className="mt-10 text-center">
+              <a
+                href="/"
+                className="inline-block text-[12px] font-semibold uppercase tracking-[0.2em] text-stone-500 transition-colors hover:text-[#0F3460]"
+              >
+                ← Back to lookbook
+              </a>
+            </div>
           </div>
         </main>
       </div>
     );
   }
 
+  // Loading the contributor's profile.
+  if (profileLoading) {
+    return (
+      <div className="flex min-h-screen w-full items-center justify-center bg-[#FAF8F5] px-6">
+        <div className="flex flex-col items-center gap-4">
+          <span className="h-8 w-8 animate-spin rounded-full border-2 border-stone-300 border-t-[#0F3460]" />
+          <span className="text-[11px] font-semibold uppercase tracking-[0.25em] text-stone-500">
+            Loading profile
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  // Profile exists — show the main submission layout. The handle onboarding
+  // card (below) is swapped in only when the profile is missing/blank.
   return (
     <div className="flex min-h-screen w-full flex-col bg-[#FAF8F5]">
       <header className="mx-auto flex w-full max-w-[1600px] items-center justify-between px-6 pt-10 md:px-16 md:pt-14">
@@ -425,7 +659,60 @@ export default function SubmitPage() {
             </p>
           </div>
 
-          {status === "success" ? (
+          {/* CONTRIBUTOR HANDLE ONBOARDING — shown when no profile/username yet */}
+          {!profile ? (
+            <div className="rounded-[2rem] border border-stone-200/70 bg-white/60 p-7 shadow-[0_18px_60px_rgba(15,52,96,0.06)] backdrop-blur-sm md:p-10">
+              <div className="mb-6 text-center">
+                <span className="mb-3 block text-[11px] font-semibold uppercase tracking-[0.3em] text-[#0F3460]">
+                  New Contributor
+                </span>
+                <h2 className="font-display text-2xl font-extrabold leading-tight text-stone-900 md:text-3xl">
+                  Choose Your Contributor Handle
+                </h2>
+                <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-stone-600">
+                  Your handle is locked to your submissions so the archive can
+                  credit every frame. Pick something memorable — letters,
+                  numbers, underscores, and dots only.
+                </p>
+              </div>
+              <form onSubmit={handleSaveHandle} className="space-y-5">
+                <Field label="Contributor Handle" required>
+                  <div className="relative">
+                    <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-stone-500">
+                      @
+                    </span>
+                    <input
+                      type="text"
+                      value={handleInput}
+                      onChange={(e) =>
+                        setHandleInput(sanitizeHandle(e.target.value))
+                      }
+                      placeholder="hafiz_kuantan"
+                      required
+                      autoFocus
+                      spellCheck={false}
+                      autoCapitalize="none"
+                      className={`${inputClass} pl-7`}
+                    />
+                  </div>
+                </Field>
+                {handleError && (
+                  <p className="break-words rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-relaxed text-red-700">
+                    {handleError}
+                  </p>
+                )}
+                <div className="flex items-center justify-end">
+                  <button
+                    type="submit"
+                    disabled={handleSaving}
+                    className="inline-flex items-center gap-2 rounded-full bg-[#0F3460] px-7 py-3 text-[12px] font-semibold uppercase tracking-[0.2em] text-[#F5F0E8] transition-colors hover:bg-[#1A4A7A] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {handleSaving ? "Saving…" : "Save Handle"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          ) : status === "success" ? (
             <div className="rounded-[2rem] border border-stone-200/70 bg-white/60 p-10 text-center shadow-[0_18px_60px_rgba(15,52,96,0.06)] backdrop-blur-sm md:p-14">
               <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-[#0F3460]/10 text-[#0F3460]">
                 <svg
@@ -528,8 +815,18 @@ export default function SubmitPage() {
                     onChange={(e) => setDisplayName(e.target.value)}
                     placeholder="Your name"
                     required
-                    className={inputClass}
+                    readOnly={!!profile}
+                    className={`${inputClass} ${
+                      profile
+                        ? "cursor-not-allowed bg-stone-100/80 text-stone-500"
+                        : ""
+                    }`}
                   />
+                  {profile && (
+                    <span className="mt-1.5 block text-[10px] font-semibold uppercase tracking-[0.2em] text-stone-400">
+                      Locked to your handle @{profile.username}
+                    </span>
+                  )}
                 </Field>
                 <Field label="Location" required>
                   <select
