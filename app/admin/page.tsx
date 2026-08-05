@@ -3,13 +3,17 @@
 import { useEffect, useState } from "react";
 import AdminDashboard from "@/components/AdminDashboard";
 import AdminGate from "@/components/AdminGate";
-import { fetchPendingPhotos, fetchAdminAnalyticsPhotos } from "@/lib/api";
+import {
+  fetchPendingPhotos,
+  fetchAdminAnalyticsPhotos,
+  fetchTopLikedPhotos,
+} from "@/lib/api";
 import type { Photo } from "@/types/photo";
 
 type AdminPageStatus =
   | { kind: "gate" }
   | { kind: "loading-dashboard" }
-  | { kind: "dashboard"; pending: Photo[]; all: Photo[] }
+  | { kind: "dashboard"; pending: Photo[]; all: Photo[]; topLiked: Photo[] }
   | { kind: "error"; message: string };
 
 export const dynamic = "force-dynamic";
@@ -24,11 +28,17 @@ export default function AdminPage() {
   const handleAuthed = async () => {
     setStatus({ kind: "loading-dashboard" });
     try {
-      const [initialPending, initialAll] = await Promise.all([
+      const [initialPending, initialAll, initialTopLiked] = await Promise.all([
         fetchPendingPhotos(),
         fetchAdminAnalyticsPhotos(),
+        fetchTopLikedPhotos(6),
       ]);
-      setStatus({ kind: "dashboard", pending: initialPending, all: initialAll });
+      setStatus({
+        kind: "dashboard",
+        pending: initialPending,
+        all: initialAll,
+        topLiked: initialTopLiked,
+      });
     } catch (error) {
       console.error("[admin] dashboard data fetch failed:", error);
       setStatus({
@@ -53,6 +63,7 @@ export default function AdminPage() {
       <AdminDashboard
         initialPending={status.pending}
         initialAll={status.all}
+        initialTopLiked={status.topLiked}
       />
     );
   }

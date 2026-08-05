@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
@@ -25,10 +25,29 @@ const supabaseAuthClient = createClient(
 
 type Tab = "overview" | "moderation" | "analytics" | "archive";
 type Range = "day" | "week" | "month";
+type ModerationView = "submissions" | "reports";
+
+type ReportPhoto = Pick<
+  Photo,
+  "id" | "image_url" | "photographer" | "location" | "caption"
+>;
+
+interface PhotoReport {
+  id: string;
+  photo_id: string;
+  reason: string;
+  details: string | null;
+  status: string | null;
+  created_at: string;
+  photo: ReportPhoto | null;
+}
+
+type ReportItem = PhotoReport;
 
 interface AdminDashboardProps {
   initialPending: Photo[];
   initialAll: Photo[];
+  initialTopLiked: Photo[];
 }
 
 const HOUR_MS = 3600_000;
@@ -50,12 +69,22 @@ const RANGES: { id: Range; label: string }[] = [
 export default function AdminDashboard({
   initialPending,
   initialAll,
+  initialTopLiked,
 }: AdminDashboardProps) {
   const [tab, setTab] = useState<Tab>("overview");
   const [range, setRange] = useState<Range>("week");
+  const [moderationView, setModerationView] =
+    useState<ModerationView>("submissions");
   const [pending, setPending] = useState<Photo[]>(initialPending);
   const [all, setAll] = useState<Photo[]>(initialAll);
+  const [topLiked, setTopLiked] = useState<Photo[]>(initialTopLiked);
   const [search, setSearch] = useState("");
+  const [reports, setReports] = useState<PhotoReport[]>([]);
+  const [reportsLoaded, setReportsLoaded] = useState(false);
+  const [reportsLoading, setReportsLoading] = useState(false);
+  const [reportsError, setReportsError] = useState<string | null>(null);
+  const [reportActionId, setReportActionId] = useState<string | null>(null);
+  const [flaggedReportCount, setFlaggedReportCount] = useState(0);
 
   const approvedCount = useMemo(
     () => all.filter((p) => p.status === "approved").length,
@@ -155,6 +184,142 @@ export default function AdminDashboard({
     deletePhotoPermanently(id, imageUrl);
   };
 
+  const loadReports = useCallback(async () => {
+    setReportsLoading(true);
+    setReportsError(null);
+
+    const { data, error } = await supabaseAuthClient
+      .from("photo_reports")
+      .select(
+        "id,photo_id,reason,details,status,created_at,photo:photos(id,image_url,photographer,location,caption)"
+      )
+      .eq("status", "pending")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("fetch photo reports error:", error.message);
+      setReportsError("Could not load flagged reports. Please try again.");
+      setReportsLoading(false);
+      return;
+    }
+
+    const normalized = (data ?? []).map((row) => {
+      const joinedPhoto = Array.isArray(row.photo) ? row.photo[0] : row.photo;
+      return {
+        ...row,
+        photo: (joinedPhoto ?? null) as ReportPhoto | null,
+      } as PhotoReport;
+    });
+
+    setReports(normalized);
+    setFlaggedReportCount(normalized.length);
+    setReportsLoaded(true);
+    setReportsLoading(false);
+  }, []);
+
+  const loadFlaggedReportCount = useCallback(async () => {
+    const { count, error } = await supabaseAuthClient
+      .from("photo_reports")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pending");
+
+    if (error) {
+      console.error("fetch pending report count error:", error.message);
+      return;
+    }
+    setFlaggedReportCount(count ?? 0);
+  }, []);
+
+  useEffect(() => {
+    void loadFlaggedReportCount();
+  }, [loadFlaggedReportCount]);
+
+  useEffect(() => {
+    if (
+      tab === "moderation" &&
+      moderationView === "reports" &&
+      !reportsLoaded &&
+      !reportsLoading
+    ) {
+      void loadReports();
+    }
+  }, [loadReports, moderationView, reportsLoaded, reportsLoading, tab]);
+
+  const handleReportStatus = async (
+    reportId: string,
+    status: "dismissed" | "reviewed"
+  ): Promise<boolean> => {
+    setReportActionId(reportId);
+    setReportsError(null);
+    const { error } = await supabaseAuthClient
+      .from("photo_reports")
+      .update({ status })
+      .eq("id", reportId);
+
+    if (error) {
+      console.error("update photo report error:", error.message);
+      setReportsError("Could not update this report. Please try again.");
+      setReportActionId(null);
+      return false;
+    } else {
+      setReports((current) =>
+        current.filter((report) => report.id !== reportId)
+      );
+      setFlaggedReportCount((current) => Math.max(0, current - 1));
+    }
+    setReportActionId(null);
+    return true;
+  };
+
+  const handleDeleteReportedPhoto = async (
+    report: PhotoReport
+  ): Promise<boolean> => {
+    if (!report.photo) return false;
+    if (
+      !confirm(
+        "Permanently delete this reported frame? This cannot be undone."
+      )
+    ) {
+      return false;
+    }
+
+    setReportActionId(report.id);
+    setReportsError(null);
+    const removedReportCount = Math.max(
+      1,
+      reports.filter((item) => item.photo_id === report.photo_id).length
+    );
+    const { error } = await supabaseAuthClient
+      .from(SUPABASE_PHOTOS_TABLE)
+      .delete()
+      .eq("id", report.photo.id);
+
+    if (error) {
+      console.error("delete reported photo error:", error.message);
+      setReportsError("Could not delete this frame. Please try again.");
+      setReportActionId(null);
+      return false;
+    } else {
+      setPending((current) =>
+        current.filter((photo) => photo.id !== report.photo_id)
+      );
+      setAll((current) =>
+        current.filter((photo) => photo.id !== report.photo_id)
+      );
+      setTopLiked((current) =>
+        current.filter((photo) => photo.id !== report.photo_id)
+      );
+      setReports((current) =>
+        current.filter((item) => item.photo_id !== report.photo_id)
+      );
+      setFlaggedReportCount((current) =>
+        Math.max(0, current - removedReportCount)
+      );
+    }
+    setReportActionId(null);
+    return true;
+  };
+
   const handleSignOut = async () => {
     await supabaseAuthClient.auth.signOut();
     window.location.reload();
@@ -212,11 +377,21 @@ export default function AdminDashboard({
               )}
               <span className="relative z-10 shrink-0">{t.icon}</span>
               <span className="relative z-10">{t.label}</span>
-              {t.id === "moderation" && pendingCount > 0 && (
-                <span className="relative z-10 ml-auto hidden md:inline-flex items-center justify-center rounded-full bg-amber-500 text-stone-900 text-[11px] font-bold px-2 min-w-[20px] h-5">
-                  {pendingCount}
-                </span>
-              )}
+              {t.id === "moderation" &&
+                (pendingCount > 0 || flaggedReportCount > 0) && (
+                  <span className="relative z-10 ml-auto flex items-center gap-1.5">
+                    {pendingCount > 0 && (
+                      <span className="px-2 py-0.5 text-[10px] font-bold font-mono rounded-full bg-amber-500 text-stone-950 shadow-sm">
+                        {pendingCount}
+                      </span>
+                    )}
+                    {flaggedReportCount > 0 && (
+                      <span className="px-2 py-0.5 text-[10px] font-bold font-mono rounded-full bg-rose-500 text-white shadow-sm">
+                        {flaggedReportCount}
+                      </span>
+                    )}
+                  </span>
+                )}
             </button>
           ))}
         </nav>
@@ -317,24 +492,77 @@ export default function AdminDashboard({
           </section>
         )}
 
+        {tab === "analytics" && <TopLikedFrames photos={topLiked} />}
+
         {(tab === "overview" || tab === "moderation") && (
           <section className="rounded-3xl bg-white shadow-[0_8px_40px_rgba(15,52,96,0.08)] border border-stone-900/5 overflow-hidden">
-            <div className="px-6 md:px-8 py-5 border-b border-stone-100 flex items-center justify-between">
+            <div className="px-6 md:px-8 py-5 border-b border-stone-100 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="font-display text-stone-900 text-xl md:text-2xl font-bold">
-                  Moderation Queue
+                  {tab === "moderation" && moderationView === "reports"
+                    ? "Flagged Reports"
+                    : "Moderation Queue"}
                 </h2>
                 <p className="text-xs text-stone-500 mt-0.5">
-                  {pendingCount} frame{pendingCount === 1 ? "" : "s"} awaiting decision
+                  {tab === "moderation" && moderationView === "reports"
+                    ? `${reports.length} active report${reports.length === 1 ? "" : "s"} awaiting review`
+                    : `${pendingCount} frame${pendingCount === 1 ? "" : "s"} awaiting decision`}
                 </p>
               </div>
+
+              {tab === "moderation" && (
+                <div className="inline-flex self-start rounded-full bg-stone-100 p-1">
+                  {(
+                    [
+                      ["submissions", "Submissions Queue"],
+                      ["reports", "Flagged Reports"],
+                    ] as const
+                  ).map(([id, label]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setModerationView(id)}
+                      className={`relative rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] transition-colors ${
+                        moderationView === id
+                          ? "text-[#F5F0E8]"
+                          : "text-stone-500 hover:text-stone-900"
+                      }`}
+                    >
+                      {moderationView === id && (
+                        <motion.span
+                          layoutId="moderation-view-pill"
+                          className="absolute inset-0 rounded-full bg-[#0F3460]"
+                          transition={{
+                            type: "spring",
+                            stiffness: 400,
+                            damping: 35,
+                          }}
+                        />
+                      )}
+                      <span className="relative z-10">{label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
-            <ModerationQueue
-              pending={pending}
-              onApprove={handleApprove}
-              onReject={handleReject}
-              onHardDelete={handleHardDelete}
-            />
+            {tab === "overview" || moderationView === "submissions" ? (
+              <ModerationQueue
+                pending={pending}
+                onApprove={handleApprove}
+                onReject={handleReject}
+                onHardDelete={handleHardDelete}
+              />
+            ) : (
+              <FlaggedReports
+                reports={reports}
+                loading={reportsLoading}
+                error={reportsError}
+                actionId={reportActionId}
+                onRetry={loadReports}
+                onDeletePhoto={handleDeleteReportedPhoto}
+                onSetStatus={handleReportStatus}
+              />
+            )}
           </section>
         )}
 
@@ -662,6 +890,426 @@ function AnalyticsChart({ photos, range }: { photos: Photo[]; range: Range }) {
           })}
         </svg>
       )}
+    </div>
+  );
+}
+
+/* ---------- Top Liked Frames ---------- */
+
+function TopLikedFrames({ photos }: { photos: Photo[] }) {
+  return (
+    <section className="mb-8 rounded-3xl bg-white shadow-[0_8px_40px_rgba(15,52,96,0.08)] border border-stone-900/5 overflow-hidden">
+      <div className="px-6 md:px-8 py-5 border-b border-stone-100">
+        <h2 className="font-display text-stone-900 text-xl md:text-2xl font-bold">
+          Top Liked Frames
+        </h2>
+        <p className="text-xs text-stone-500 mt-0.5">
+          The archive&apos;s most appreciated photographs
+        </p>
+      </div>
+
+      {photos.length === 0 ? (
+        <div className="px-6 py-14 text-center text-sm text-stone-400">
+          No liked frames to rank yet.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 p-6 md:p-8">
+          {photos.map((photo, index) => (
+            <motion.article
+              key={photo.id}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{
+                delay: index * 0.06,
+                duration: 0.45,
+                ease: [0.22, 1, 0.36, 1],
+              }}
+              className="group overflow-hidden rounded-2xl border border-stone-200/80 bg-[#F5F0E8]/45"
+            >
+              <div className="relative aspect-[4/3] overflow-hidden bg-stone-100">
+                <Image
+                  src={photo.image_url}
+                  alt={photo.caption || photo.location}
+                  fill
+                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                  className="object-cover transition-transform duration-700 group-hover:scale-105"
+                />
+                <span className="absolute left-3 top-3 inline-flex h-9 min-w-9 items-center justify-center rounded-full bg-[#0F3460] px-2 text-xs font-bold text-[#F5F0E8] shadow-lg">
+                  #{index + 1}
+                </span>
+                <span className="absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-full border border-red-200/60 bg-white/90 px-3 py-1.5 text-xs font-bold text-red-600 shadow-lg backdrop-blur-md">
+                  <span aria-hidden>♥</span>
+                  <span className="tabular-nums">{photo.likes_count ?? 0}</span>
+                </span>
+              </div>
+              <div className="p-4">
+                <h3 className="font-display line-clamp-2 text-lg font-bold leading-snug text-stone-900">
+                  {photo.caption || photo.location}
+                </h3>
+                <div className="mt-3 flex items-center justify-between gap-3 text-xs text-stone-500">
+                  <span className="min-w-0 truncate font-medium text-stone-700">
+                    {photo.photographer.startsWith("@")
+                      ? photo.photographer
+                      : `@${photo.photographer}`}
+                  </span>
+                  <span className="inline-flex shrink-0 items-center gap-1 truncate">
+                    <PinIcon /> {photo.location}
+                  </span>
+                </div>
+              </div>
+            </motion.article>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+/* ---------- Flagged Reports ---------- */
+
+function FlaggedReports({
+  reports,
+  loading,
+  error,
+  actionId,
+  onRetry,
+  onDeletePhoto,
+  onSetStatus,
+}: {
+  reports: PhotoReport[];
+  loading: boolean;
+  error: string | null;
+  actionId: string | null;
+  onRetry: () => void | Promise<void>;
+  onDeletePhoto: (report: PhotoReport) => boolean | Promise<boolean>;
+  onSetStatus: (
+    reportId: string,
+    status: "dismissed" | "reviewed"
+  ) => boolean | Promise<boolean>;
+}) {
+  const [selectedReportItem, setSelectedReportItem] =
+    useState<ReportItem | null>(null);
+
+  useEffect(() => {
+    if (!selectedReportItem) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && actionId !== selectedReportItem.id) {
+        setSelectedReportItem(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [actionId, selectedReportItem]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center gap-3 px-6 py-16 text-sm text-stone-500">
+        <span className="h-5 w-5 animate-spin rounded-full border-2 border-stone-200 border-t-[#0F3460]" />
+        Loading flagged reports...
+      </div>
+    );
+  }
+
+  if (error && reports.length === 0) {
+    return (
+      <div className="px-6 py-16 text-center">
+        <p className="text-sm text-red-600">{error}</p>
+        <button
+          type="button"
+          onClick={() => void onRetry()}
+          className="mt-4 rounded-full bg-[#0F3460] px-5 py-2 text-xs font-semibold uppercase tracking-[0.15em] text-white"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
+  if (reports.length === 0) {
+    return (
+      <div className="px-6 md:px-8 py-16 flex flex-col items-center justify-center text-center">
+        <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+          <CheckIcon />
+        </span>
+        <p className="font-display text-stone-700 text-lg font-semibold">
+          No active reports
+        </p>
+        <p className="text-sm text-stone-400 mt-1 font-light">
+          Every flagged frame has been reviewed.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {error ? (
+        <p className="border-b border-red-100 bg-red-50 px-6 py-3 text-xs text-red-600">
+          {error}
+        </p>
+      ) : null}
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[980px] text-left">
+          <thead>
+            <tr className="bg-stone-50/80 border-b border-stone-100">
+              {["Frame", "Photographer", "Location", "Flagged Reason", "Actions"].map(
+                (heading) => (
+                  <th
+                    key={heading}
+                    className="px-4 md:px-6 py-3.5 text-[10px] uppercase tracking-[0.18em] text-stone-500 font-semibold whitespace-nowrap"
+                  >
+                    {heading}
+                  </th>
+                )
+              )}
+            </tr>
+          </thead>
+          <tbody>
+            <AnimatePresence mode="popLayout">
+              {reports.map((report) => {
+                const photo = report.photo;
+                const busy = actionId === report.id;
+                return (
+                  <motion.tr
+                    key={report.id}
+                    layout
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, x: 48 }}
+                    className="border-b border-stone-50 hover:bg-stone-50/50"
+                  >
+                    <td className="px-4 md:px-6 py-3.5">
+                      <button
+                        type="button"
+                        disabled={!photo}
+                        onClick={() => setSelectedReportItem(report)}
+                        aria-label={
+                          photo
+                            ? `Inspect reported frame by ${photo.photographer}`
+                            : "Reported frame unavailable"
+                        }
+                        className="relative w-14 h-14 rounded-xl overflow-hidden cursor-pointer group border border-stone-200/80 hover:border-amber-500 transition-all shadow-sm disabled:cursor-not-allowed"
+                      >
+                        {photo ? (
+                          <>
+                            <Image
+                              src={photo.image_url}
+                              alt={photo.caption || photo.location}
+                              fill
+                              sizes="56px"
+                              className="object-cover transition-transform duration-300 group-hover:scale-105"
+                            />
+                            <span className="absolute inset-0 flex items-center justify-center bg-black/0 text-white opacity-0 transition-all group-hover:bg-black/45 group-hover:opacity-100">
+                              <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                className="h-5 w-5"
+                                aria-hidden
+                              >
+                                <circle cx="11" cy="11" r="7" />
+                                <path d="m20 20-4-4M11 8v6M8 11h6" />
+                              </svg>
+                            </span>
+                          </>
+                        ) : (
+                          <span className="flex h-full items-center justify-center text-[9px] uppercase tracking-wider text-stone-400">
+                            Deleted
+                          </span>
+                        )}
+                      </button>
+                    </td>
+                    <td className="px-4 md:px-6 py-3.5 text-sm font-medium text-stone-800">
+                      {photo
+                        ? photo.photographer.startsWith("@")
+                          ? photo.photographer
+                          : `@${photo.photographer}`
+                        : "—"}
+                    </td>
+                    <td className="px-4 md:px-6 py-3.5">
+                      <span className="inline-flex items-center gap-1.5 text-sm text-stone-600">
+                        <PinIcon /> {photo?.location ?? "Unknown"}
+                      </span>
+                    </td>
+                    <td className="px-4 md:px-6 py-3.5">
+                      <span className="block max-w-[240px] text-sm font-medium text-red-700">
+                        {report.reason}
+                      </span>
+                      {report.details ? (
+                        <span className="mt-1 block max-w-[280px] text-xs leading-relaxed text-stone-400">
+                          {report.details}
+                        </span>
+                      ) : null}
+                    </td>
+                    <td className="px-4 md:px-6 py-3.5">
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          disabled={busy || !photo}
+                          onClick={() => void onDeletePhoto(report)}
+                          className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-red-700 transition-colors hover:bg-red-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          <TrashIcon /> Delete Photo
+                        </button>
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void onSetStatus(report.id, "dismissed")}
+                          className="rounded-full bg-stone-100 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-stone-600 transition-colors hover:bg-stone-200 disabled:opacity-40"
+                        >
+                          👁️‍🗨️ Dismiss
+                        </button>
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void onSetStatus(report.id, "reviewed")}
+                          className="rounded-full bg-emerald-100 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-700 transition-colors hover:bg-emerald-600 hover:text-white disabled:opacity-40"
+                        >
+                          ✅ Mark Reviewed
+                        </button>
+                      </div>
+                    </td>
+                  </motion.tr>
+                );
+              })}
+            </AnimatePresence>
+          </tbody>
+        </table>
+      </div>
+
+      <AnimatePresence>
+        {selectedReportItem?.photo ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[99999] bg-black/85 backdrop-blur-md flex items-center justify-center p-4 sm:p-8"
+            onClick={() => {
+              if (actionId !== selectedReportItem.id) {
+                setSelectedReportItem(null);
+              }
+            }}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 20, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 12, scale: 0.98 }}
+              transition={{
+                type: "spring",
+                stiffness: 320,
+                damping: 30,
+              }}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="reported-frame-preview-title"
+              onClick={(event) => event.stopPropagation()}
+              className="relative max-w-3xl w-full max-h-[90vh] bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden p-6 shadow-2xl flex flex-col text-stone-100 my-auto"
+            >
+              <header className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <h2
+                    id="reported-frame-preview-title"
+                    className="truncate text-base font-semibold text-stone-100"
+                  >
+                    {selectedReportItem.photo.photographer.startsWith("@")
+                      ? selectedReportItem.photo.photographer
+                      : `@${selectedReportItem.photo.photographer}`}
+                  </h2>
+                  <p className="mt-1 inline-flex items-center gap-1.5 text-xs text-stone-400">
+                    <PinIconLight /> {selectedReportItem.photo.location}
+                  </p>
+                </div>
+
+                <div className="flex shrink-0 items-start gap-3">
+                  <span className="max-w-52 rounded-full border border-red-400/30 bg-red-400/10 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-red-300">
+                    {selectedReportItem.reason}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={actionId === selectedReportItem.id}
+                    onClick={() => setSelectedReportItem(null)}
+                    aria-label="Close reported frame preview"
+                    className="rounded-full border border-slate-700 bg-slate-800 p-2 text-stone-400 transition-colors hover:text-amber-400 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <CloseIcon />
+                  </button>
+                </div>
+              </header>
+
+              <Image
+                src={selectedReportItem.photo.image_url}
+                alt={
+                  selectedReportItem.photo.caption ||
+                  selectedReportItem.photo.location
+                }
+                width={1600}
+                height={1200}
+                sizes="(max-width: 768px) calc(100vw - 32px), 768px"
+                className="w-full max-h-[60vh] object-contain rounded-2xl bg-black/50 my-4 h-auto"
+              />
+
+              {selectedReportItem.details ? (
+                <blockquote className="mb-4 rounded-xl border border-slate-700/80 bg-slate-800/70 px-4 py-3 text-xs leading-relaxed text-stone-300">
+                  <span className="mb-1 block text-[9px] font-semibold uppercase tracking-[0.2em] text-stone-500">
+                    Reporter notes
+                  </span>
+                  “{selectedReportItem.details}”
+                </blockquote>
+              ) : null}
+
+              {error ? (
+                <p className="mb-3 rounded-xl bg-red-400/10 px-4 py-2 text-xs text-red-300">
+                  {error}
+                </p>
+              ) : null}
+
+              <footer className="mt-auto flex flex-wrap items-center justify-end gap-2 border-t border-slate-800 pt-4">
+                <button
+                  type="button"
+                  disabled={actionId === selectedReportItem.id}
+                  onClick={async () => {
+                    const completed = await onDeletePhoto(selectedReportItem);
+                    if (completed) setSelectedReportItem(null);
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-red-500/10 px-4 py-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-red-300 transition-colors hover:bg-red-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <TrashIcon /> Delete Photo
+                </button>
+                <button
+                  type="button"
+                  disabled={actionId === selectedReportItem.id}
+                  onClick={async () => {
+                    const completed = await onSetStatus(
+                      selectedReportItem.id,
+                      "dismissed"
+                    );
+                    if (completed) setSelectedReportItem(null);
+                  }}
+                  className="rounded-full bg-slate-800 px-4 py-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-stone-300 transition-colors hover:bg-slate-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Dismiss
+                </button>
+                <button
+                  type="button"
+                  disabled={actionId === selectedReportItem.id}
+                  onClick={async () => {
+                    const completed = await onSetStatus(
+                      selectedReportItem.id,
+                      "reviewed"
+                    );
+                    if (completed) setSelectedReportItem(null);
+                  }}
+                  className="rounded-full bg-emerald-500/15 px-4 py-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-300 transition-colors hover:bg-emerald-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Mark Reviewed
+                </button>
+              </footer>
+            </motion.div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 }

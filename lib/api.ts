@@ -64,6 +64,21 @@ export async function fetchAdminAnalyticsPhotos(): Promise<Photo[]> {
   return (data ?? []) as Photo[];
 }
 
+export async function fetchTopLikedPhotos(limit = 6): Promise<Photo[]> {
+  const { data, error } = await supabase
+    .from(SUPABASE_PHOTOS_TABLE)
+    .select(SELECT_COLS)
+    .order("likes_count", { ascending: false, nullsFirst: false })
+    .limit(limit);
+
+  if (error) {
+    console.error("fetchTopLikedPhotos error:", error.message);
+    return [];
+  }
+
+  return (data ?? []) as Photo[];
+}
+
 export async function updatePhotoDetails(
   id: string,
   updates: {

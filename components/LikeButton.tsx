@@ -52,6 +52,7 @@ interface LikeButtonProps {
   initiallyLiked: boolean;
   isAuthed: boolean;
   userId?: string | null;
+  onLikeChange?: (count: number, liked: boolean) => void;
 }
 
 export default function LikeButton({
@@ -60,6 +61,7 @@ export default function LikeButton({
   initiallyLiked,
   isAuthed,
   userId,
+  onLikeChange,
 }: LikeButtonProps) {
   const [count, setCount] = useState<number>(initialCount);
   const [liked, setLiked] = useState<boolean>(initiallyLiked);
@@ -113,9 +115,10 @@ export default function LikeButton({
     setCount(initialCount);
   }, [initialCount]);
 
-  // upstream initiallyLiked is only a seed; the mount effect above is
-  // authoritative. Keep the prop in the interface for parent compatibility.
-  void initiallyLiked;
+  useEffect(() => {
+    setLiked(initiallyLiked);
+  }, [initiallyLiked]);
+
   void isAuthed;
   void userId;
 
@@ -135,11 +138,14 @@ export default function LikeButton({
       setBusy(true);
 
       const prevLiked = liked;
+      const prevCount = count;
       const nextLiked = !prevLiked;
+      const nextCount = Math.max(0, prevCount + (nextLiked ? 1 : -1));
 
       // 0ms optimistic local toggle
       setLiked(nextLiked);
-      setCount((c) => Math.max(0, c + (nextLiked ? 1 : -1)));
+      setCount(nextCount);
+      onLikeChange?.(nextCount, nextLiked);
       if (nextLiked) spawnParticle();
 
       try {
@@ -189,12 +195,13 @@ export default function LikeButton({
         // Revert optimistic UI state on any failure.
         console.error("like persistence error:", err);
         setLiked(prevLiked);
-        setCount((c) => Math.max(0, c + (prevLiked ? 1 : -1)));
+        setCount(prevCount);
+        onLikeChange?.(prevCount, prevLiked);
       } finally {
         setBusy(false);
       }
     },
-    [busy, liked, photoId, spawnParticle]
+    [busy, count, liked, onLikeChange, photoId, spawnParticle]
   );
 
   return (
