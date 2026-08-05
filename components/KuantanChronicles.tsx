@@ -109,6 +109,7 @@ export default function KuantanChronicles() {
           return (
             <article
               key={item.era}
+              data-cursor="READ STORY"
               className={`snap-start snap-always w-full rounded-xl bg-slate-900/70 p-6 border border-slate-800 hover:border-slate-700 transition-all duration-200 ${
                 isActive || isComplete ? "opacity-100" : "opacity-60"
               }`}

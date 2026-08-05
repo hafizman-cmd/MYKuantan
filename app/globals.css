@@ -65,6 +65,15 @@ a {
 .leaflet-container {
   background: #0f172a;
   font-family: var(--font-inter), "Inter", system-ui, sans-serif;
+  cursor: grab !important;
+}
+
+.leaflet-container:active {
+  cursor: grabbing !important;
+}
+
+.leaflet-interactive {
+  cursor: pointer !important;
 }
 
 .kuantan-pulse-marker {

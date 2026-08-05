@@ -97,7 +97,9 @@ export default function VisitMiniMap({
   const pinIsActive = activeRouteFilter !== null;
 
   return (
-    <div className="w-full h-[360px] lg:h-full min-h-[480px] rounded-2xl bg-slate-900/80 border border-slate-800 text-stone-300 p-3 shadow-sm flex flex-col justify-between">
+    <div
+      className="w-full h-[360px] lg:h-full min-h-[480px] rounded-2xl bg-slate-900/80 border border-slate-800 text-stone-300 p-3 shadow-sm flex flex-col justify-between"
+    >
       <div className="w-full flex-1 rounded-xl overflow-hidden min-h-[380px]">
         <MapContainer
           center={KUANTAN_CENTER}

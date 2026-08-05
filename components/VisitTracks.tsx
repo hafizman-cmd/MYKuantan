@@ -138,15 +138,15 @@ export default function VisitTracks({ photos }: VisitTracksProps) {
   return (
     <>
       {/* Page header — breathing room below fixed Navbar */}
-<div className="w-full flex flex-col items-center justify-center text-center">
-          <h2 className="text-3xl sm:text-4xl font-serif text-stone-100 tracking-tight mb-8">
-            Visit Kuantan
-          </h2>
-          <p className="text-xs sm:text-sm text-stone-300 max-w-md mx-auto text-center leading-relaxed mb-10 md:mb-12">
-            Three curated travel routes through Pahang&apos;s coast, peaks, and
-            heritage heart. Select a trail to filter the atlas below.
-          </p>
-        </div>
+      <div className="w-full flex flex-col items-center justify-center text-center">
+        <h2 className="text-3xl sm:text-4xl font-serif text-stone-100 tracking-tight mb-8">
+          Visit Kuantan
+        </h2>
+        <p className="text-xs sm:text-sm text-stone-300 max-w-md mx-auto text-center leading-relaxed mb-10 md:mb-12">
+          Three curated travel routes through Pahang&apos;s coast, peaks, and
+          heritage heart. Select a trail to filter the atlas below.
+        </p>
+      </div>
 
       {/* Top 2-column selection workspace */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 w-full items-stretch mt-2">
@@ -159,11 +159,10 @@ export default function VisitTracks({ photos }: VisitTracksProps) {
                 key={route.id}
                 type="button"
                 onClick={() => handleToggle(route.id)}
-                className={`w-full text-left rounded-2xl p-6 border shadow-sm relative transition-all duration-200 ${
-                  isSelected
-                    ? "bg-slate-800 border-amber-500/50 text-white shadow-lg"
-                    : "bg-slate-900/60 border-slate-800 text-stone-200 hover:border-slate-700"
-                }`}
+                className={`w-full text-left rounded-2xl p-6 border shadow-sm relative transition-all duration-200 ${isSelected
+                  ? "bg-slate-800 border-amber-500/50 text-white shadow-lg"
+                  : "bg-slate-900/60 border-slate-800 text-stone-200 hover:border-slate-700"
+                  }`}
               >
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-amber-400 font-sans tracking-widest text-[11px] uppercase font-bold">
@@ -177,9 +176,8 @@ export default function VisitTracks({ photos }: VisitTracksProps) {
                   {route.description}
                 </p>
                 <span
-                  className={`mt-5 inline-flex items-center gap-2 text-[12px] uppercase tracking-[0.2em] font-medium transition-colors duration-300 ${
-                    isSelected ? "text-amber-400" : "text-stone-400"
-                  }`}
+                  className={`mt-5 inline-flex items-center gap-2 text-[12px] uppercase tracking-[0.2em] font-medium transition-colors duration-300 ${isSelected ? "text-amber-400" : "text-stone-400"
+                    }`}
                 >
                   {isSelected ? "Filtering atlas" : "Select to filter"}
                   <svg
@@ -216,13 +214,13 @@ export default function VisitTracks({ photos }: VisitTracksProps) {
 
       {/* Active itinerary details — standard page flow below the workspace */}
       {activeTrack && (
-        <div className="w-full mt-8 rounded-2xl bg-white p-6 md:p-8 border border-stone-200/80 shadow-sm relative block">
+        <div className="w-full mt-8 rounded-2xl bg-slate-900/60 p-6 md:p-8 border border-slate-800 shadow-sm relative block">
           <div className="mb-4 flex items-center justify-between gap-3 flex-wrap md:flex-nowrap">
             <div>
-              <span className="text-amber-600 font-sans tracking-widest text-[11px] uppercase font-bold">
+              <span className="text-amber-400 font-sans tracking-widest text-[11px] uppercase font-bold">
                 {activeTrack.id}
               </span>
-              <h3 className="font-display text-stone-900 text-xl md:text-2xl font-bold leading-tight mt-1">
+              <h3 className="font-display text-white text-xl md:text-2xl font-bold leading-tight mt-1">
                 {activeTrack.title}
               </h3>
             </div>
@@ -230,16 +228,17 @@ export default function VisitTracks({ photos }: VisitTracksProps) {
               <button
                 type="button"
                 onClick={() => setActiveRouteFilter(null)}
-                className="text-[12px] uppercase tracking-[0.2em] font-medium text-stone-500 hover:text-stone-900 transition-colors duration-300"
+                className="text-[12px] uppercase tracking-[0.2em] font-medium text-stone-400 hover:text-amber-400 transition-colors duration-300"
               >
                 Reset — show all trails
               </button>
+
               {journeyUrl && (
                 <a
                   href={journeyUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2 border border-stone-850 text-stone-850 bg-transparent hover:bg-amber-500 hover:border-amber-500 hover:text-stone-950 transition-all duration-200 text-xs tracking-widest uppercase font-bold rounded-full whitespace-nowrap shadow-sm"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-500 text-stone-950 hover:bg-amber-400 hover:scale-105 transition-all duration-200 text-xs tracking-widest uppercase font-extrabold rounded-full whitespace-nowrap shadow-md shadow-amber-500/10"
                 >
                   Start Journey ↗
                 </a>
@@ -247,7 +246,7 @@ export default function VisitTracks({ photos }: VisitTracksProps) {
             </div>
           </div>
           {journeyTruncated && (
-            <p className="mb-4 text-[11px] uppercase tracking-[0.2em] font-medium text-amber-600/80 font-sans text-center md:text-left">
+            <p className="mb-4 text-[11px] uppercase tracking-[0.2em] font-medium text-amber-400/80 font-sans text-center md:text-left">
               Showing the optimal first 10 stops on your Kuantan
               itinerary.
             </p>
@@ -260,18 +259,18 @@ export default function VisitTracks({ photos }: VisitTracksProps) {
                 return (
                   <li key={location} className="relative flex items-start gap-4 mb-4 last:mb-0">
                     <div className="flex flex-col items-center">
-                      <span className="flex items-center justify-center w-10 h-10 rounded-full bg-stone-900 text-[#F5F0E8] font-sans text-[10px] uppercase tracking-widest font-bold shrink-0">
+                      <span className="flex items-center justify-center w-10 h-10 rounded-full bg-amber-500 text-stone-950 font-sans text-[10px] uppercase tracking-widest font-bold shrink-0">
                         {String(idx + 1).padStart(2, "0")}
                       </span>
                       {!isLast && (
-                        <span className="mt-1 w-px flex-1 border-l border-dashed border-stone-300" />
+                        <span className="mt-1 w-px flex-1 border-l border-dashed border-slate-600" />
                       )}
                     </div>
                     <div className="flex flex-col pt-1 pb-4">
-                      <span className="text-amber-600 font-sans tracking-widest text-[11px] uppercase font-bold mb-1">
+                      <span className="text-amber-400 font-sans tracking-widest text-[11px] uppercase font-bold mb-1">
                         {details.time}
                       </span>
-                      <p className="text-stone-800 font-serif text-sm md:text-base leading-relaxed">
+                      <p className="text-stone-300 font-serif text-sm md:text-base leading-relaxed">
                         {details.activity}
                       </p>
                     </div>
@@ -280,7 +279,7 @@ export default function VisitTracks({ photos }: VisitTracksProps) {
               })}
             </ol>
           ) : (
-            <p className="text-stone-500 font-serif text-sm leading-relaxed text-center py-6">
+            <p className="text-stone-400 font-serif text-sm leading-relaxed text-center py-6">
               No pinned frames for this trail yet — be the first to
               submit.
             </p>

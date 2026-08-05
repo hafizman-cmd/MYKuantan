@@ -174,6 +174,7 @@ export default function Hero({ latestPhotos }: HeroProps) {
                 type="button"
                 onClick={() => setActive(i)}
                 aria-label={`View ${photo.location}`}
+                data-cursor="VIEW FRAME"
                 className={`relative h-full overflow-hidden rounded-[1.5rem] md:rounded-[2rem] bg-[#0F3460] cursor-pointer transition-all duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-flex-grow ${
                   isActive ? "flex-[4]" : "flex-[0.7]"
                 }`}

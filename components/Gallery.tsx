@@ -207,6 +207,7 @@ export default function Gallery({ photos }: GalleryProps) {
                   <div
                     key={photo.id}
                     data-photo-location={photo.location}
+                    data-cursor="VIEW FRAME"
                     ref={setCardRef(photo.id)}
                     onClick={() => setActiveLocation(photo.location)}
                     className={`group h-full w-full flex-shrink-0 snap-start snap-always relative rounded-xl overflow-hidden mb-0 cursor-pointer transition-all duration-300 ${
@@ -335,6 +336,7 @@ export default function Gallery({ photos }: GalleryProps) {
           {visibleArchive.map((photo) => (
             <article
               key={photo.id}
+              data-cursor="VIEW FRAME"
               className="group relative flex flex-col rounded-2xl overflow-hidden bg-[#1A4A7A] ring-1 ring-white/5 transition-transform duration-300 hover:scale-[1.01]"
             >
               <div className="relative w-full aspect-[4/3] overflow-hidden">
