@@ -97,43 +97,48 @@ export default function VisitMiniMap({
   const pinIsActive = activeRouteFilter !== null;
 
   return (
-    <div className="w-full h-full relative z-0 isolate">
-      <MapContainer
-        center={KUANTAN_CENTER}
-        zoom={11}
-        className="w-full h-full relative z-0 isolate"
-        zoomControl={false}
-        scrollWheelZoom={false}
-      >
-        <TileLayer
-          url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-          attribution="Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community"
-        />
-        <MiniMapFitter coordinates={coordinates} />
-        {filteredPhotos.map((photo) => {
-          let pinCoords: [number, number] | null = null;
-          if (photo.latitude != null && photo.longitude != null) {
-            pinCoords = [photo.latitude, photo.longitude];
-          } else if (locationCoords[photo.location]) {
-            pinCoords = locationCoords[photo.location];
-          }
-          if (!pinCoords) return null;
-          return (
-            <Marker
-              key={photo.id}
-              position={pinCoords}
-              icon={createCustomMarker(pinIsActive)}
-              eventHandlers={{
-                click: () => {
-                  const [lat, lng] = pinCoords as [number, number];
-                  const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
-                  window.open(googleMapsUrl, "_blank", "noopener,noreferrer");
-                },
-              }}
-            />
-          );
-        })}
-      </MapContainer>
+    <div className="w-full h-[360px] lg:h-full min-h-[480px] rounded-2xl bg-slate-900/80 border border-slate-800 text-stone-300 p-3 shadow-sm flex flex-col justify-between">
+      <div className="w-full flex-1 rounded-xl overflow-hidden min-h-[380px]">
+        <MapContainer
+          center={KUANTAN_CENTER}
+          zoom={11}
+          className="w-full h-full relative z-0 isolate"
+          zoomControl={false}
+          scrollWheelZoom={false}
+        >
+          <TileLayer
+            url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+            attribution="Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community"
+          />
+          <MiniMapFitter coordinates={coordinates} />
+          {filteredPhotos.map((photo) => {
+            let pinCoords: [number, number] | null = null;
+            if (photo.latitude != null && photo.longitude != null) {
+              pinCoords = [photo.latitude, photo.longitude];
+            } else if (locationCoords[photo.location]) {
+              pinCoords = locationCoords[photo.location];
+            }
+            if (!pinCoords) return null;
+            return (
+              <Marker
+                key={photo.id}
+                position={pinCoords}
+                icon={createCustomMarker(pinIsActive)}
+                eventHandlers={{
+                  click: () => {
+                    const [lat, lng] = pinCoords as [number, number];
+                    const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+                    window.open(googleMapsUrl, "_blank", "noopener,noreferrer");
+                  },
+                }}
+              />
+            );
+          })}
+        </MapContainer>
+      </div>
+      <p className="text-xs font-serif text-stone-400 text-center pt-2.5 shrink-0 block">
+        A bird&apos;s-eye view of Kuantan
+      </p>
     </div>
   );
 }

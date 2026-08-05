@@ -87,13 +87,13 @@ export default function KuantanChronicles() {
   return (
     <section
       id="stories"
-      className="w-full max-w-6xl mx-auto px-6 pt-28 md:pt-32 pb-8 flex flex-col justify-start items-center min-h-screen overflow-visible block bg-[#FAF8F5] text-stone-900"
+      className="w-full max-w-6xl mx-auto px-6 pt-28 md:pt-32 pb-8 flex flex-col justify-start items-center min-h-screen overflow-visible block bg-[#0F3460] text-stone-100"
     >
       <div className="w-full mb-6 text-center overflow-visible z-10">
-        <h2 className="text-3xl sm:text-4xl font-serif text-stone-900 tracking-tight mb-2 block">
+        <h2 className="text-3xl sm:text-4xl font-serif text-stone-100 tracking-tight mb-2 block">
           Stories of Kuantan
         </h2>
-        <p className="text-xs sm:text-sm text-stone-600 max-w-md mx-auto block leading-relaxed">
+        <p className="text-xs sm:text-sm text-stone-300 max-w-md mx-auto block leading-relaxed">
           A museum-grade timeline of the coastal capital — printed line by
           line as you arrive.
         </p>
@@ -101,7 +101,7 @@ export default function KuantanChronicles() {
 
       <div
         ref={containerRef}
-        className="w-full max-w-3xl h-[52vh] max-h-[520px] overflow-y-auto pr-3 custom-scrollbar snap-y snap-mandatory rounded-2xl bg-white/80 p-4 border border-stone-200/80 shadow-sm space-y-4"
+        className="w-full max-w-3xl h-[52vh] max-h-[520px] overflow-y-auto pr-3 custom-scrollbar snap-y snap-mandatory rounded-2xl bg-slate-900/60 p-4 border border-slate-800 shadow-sm space-y-4"
       >
         {CHRONICLES.map((item, i) => {
           const isActive = i === activeEra;
@@ -109,22 +109,22 @@ export default function KuantanChronicles() {
           return (
             <article
               key={item.era}
-              className={`snap-start snap-always w-full rounded-xl bg-white p-6 border border-stone-200/80 shadow-sm hover:border-stone-300 transition-all duration-200 ${
+              className={`snap-start snap-always w-full rounded-xl bg-slate-900/70 p-6 border border-slate-800 hover:border-slate-700 transition-all duration-200 ${
                 isActive || isComplete ? "opacity-100" : "opacity-60"
               }`}
             >
-              <p className="text-xs font-mono font-semibold tracking-wider text-amber-700 uppercase mb-1">
+              <p className="text-xs font-mono font-semibold tracking-wider text-amber-400 uppercase mb-1">
                 {item.era}
               </p>
-              <h3 className="text-xl sm:text-2xl font-serif text-stone-900 mb-3">
+              <h3 className="text-xl sm:text-2xl font-serif text-white mb-3">
                 {item.title}
               </h3>
-              <p className="text-xs sm:text-sm text-stone-600 leading-relaxed">
+              <p className="text-xs sm:text-sm text-stone-300 leading-relaxed">
                 {typed[i]}
                 {isActive && hasStarted && (
                   <span
                     aria-hidden
-                    className="inline-block align-middle w-2 h-4 md:h-5 ml-1 bg-amber-600 animate-pulse"
+                    className="inline-block align-middle w-2 h-4 md:h-5 ml-1 bg-amber-400 animate-pulse"
                   />
                 )}
               </p>
