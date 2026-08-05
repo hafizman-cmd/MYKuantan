@@ -13,6 +13,7 @@ import {
 } from "./LikeButton";
 import LikeButton from "./LikeButton";
 import { supabaseClient } from "@/lib/supabase/client";
+import { useCollection } from "@/lib/useCollection";
 
 const EditorialMap = dynamic(() => import("./EditorialMap"), {
   ssr: false,
@@ -54,6 +55,12 @@ function uploaderHandle(name: string): string {
 
 export default function Gallery({ photos: initialPhotos }: GalleryProps) {
   const [photos, setPhotos] = useState<Photo[]>(initialPhotos);
+  const {
+    bookmarkedPhotoIds,
+    busyKeys: collectionBusyKeys,
+    toast: collectionToast,
+    toggleBookmarkPhoto,
+  } = useCollection();
 
   // ── Atlas workspace state ────────────────────────────────────────────
   const cardRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
@@ -495,8 +502,8 @@ export default function Gallery({ photos: initialPhotos }: GalleryProps) {
                   {photo.location}
                 </span>
 
-                {/* Heart LikeButton */}
-                <div className="absolute top-3 right-3 z-20">
+                {/* Archive actions */}
+                <div className="absolute top-3 right-3 z-10 flex items-center gap-2">
                   <LikeButton
                     photoId={photo.id}
                     initialCount={photo.likes_count ?? 0}
@@ -506,7 +513,46 @@ export default function Gallery({ photos: initialPhotos }: GalleryProps) {
                     onLikeChange={(nextCount, nextLiked) =>
                       handleLike(photo.id, nextCount, nextLiked)
                     }
+                    archiveOverlay
                   />
+
+                  <button
+                    type="button"
+                    disabled={collectionBusyKeys.has(`photo_id:${photo.id}`)}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      void toggleBookmarkPhoto(photo.id);
+                    }}
+                    aria-pressed={bookmarkedPhotoIds.has(photo.id)}
+                    aria-label={
+                      bookmarkedPhotoIds.has(photo.id)
+                        ? "Remove photo from My Kuantan Trip"
+                        : "Save photo to My Kuantan Trip"
+                    }
+                    className={`inline-flex items-center justify-center bg-black/60 backdrop-blur-md border border-white/10 rounded-full p-2 hover:scale-105 transition-transform disabled:cursor-wait disabled:opacity-60 ${
+                      bookmarkedPhotoIds.has(photo.id)
+                        ? "text-amber-400"
+                        : "text-stone-200 hover:text-amber-400"
+                    }`}
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-4 w-4"
+                      fill={
+                        bookmarkedPhotoIds.has(photo.id)
+                          ? "currentColor"
+                          : "none"
+                      }
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden
+                    >
+                      <path d="M6 4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18l-6-4-6 4V4z" />
+                    </svg>
+                  </button>
                 </div>
 
                 {/* Uploader handle + upload date */}
@@ -552,6 +598,20 @@ export default function Gallery({ photos: initialPhotos }: GalleryProps) {
           </div>
         ) : null}
       </section>
+
+      <AnimatePresence>
+        {collectionToast ? (
+          <motion.div
+            initial={{ opacity: 0, y: 18, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 12, scale: 0.97 }}
+            role="status"
+            className="fixed bottom-6 left-1/2 z-[100001] w-[calc(100%_-_2rem)] max-w-sm -translate-x-1/2 rounded-2xl border border-amber-400/25 bg-slate-900/95 px-5 py-3 text-center text-sm text-stone-100 shadow-2xl backdrop-blur-xl"
+          >
+            {collectionToast}
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
 
       <AnimatePresence>
         {activePhoto ? (

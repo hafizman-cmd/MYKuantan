@@ -53,6 +53,7 @@ interface LikeButtonProps {
   isAuthed: boolean;
   userId?: string | null;
   onLikeChange?: (count: number, liked: boolean) => void;
+  archiveOverlay?: boolean;
 }
 
 export default function LikeButton({
@@ -62,6 +63,7 @@ export default function LikeButton({
   isAuthed,
   userId,
   onLikeChange,
+  archiveOverlay = false,
 }: LikeButtonProps) {
   const [count, setCount] = useState<number>(initialCount);
   const [liked, setLiked] = useState<boolean>(initiallyLiked);
@@ -212,10 +214,16 @@ export default function LikeButton({
       aria-busy={busy}
       aria-pressed={liked}
       aria-label={liked ? "Unlike photo" : "Like photo"}
-      className={`group/like relative inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] uppercase tracking-[0.18em] backdrop-blur-md transition-colors duration-300 ${
-        liked
-          ? "border-red-500/50 bg-red-500/15 text-red-600 shadow-[0_0_20px_rgba(220,38,38,0.55)]"
-          : "border-white/25 bg-black/35 text-stone-300 hover:text-red-500 hover:border-red-500/50"
+      className={`group/like relative inline-flex items-center gap-1.5 text-[11px] uppercase tracking-[0.18em] ${
+        archiveOverlay
+          ? `bg-black/60 backdrop-blur-md border border-white/10 rounded-full p-2 hover:scale-105 transition-transform ${
+              liked ? "text-red-400" : "text-stone-200 hover:text-red-400"
+            }`
+          : `rounded-full border px-3 py-1.5 backdrop-blur-md transition-colors duration-300 ${
+              liked
+                ? "border-red-500/50 bg-red-500/15 text-red-600 shadow-[0_0_20px_rgba(220,38,38,0.55)]"
+                : "border-white/25 bg-black/35 text-stone-300 hover:text-red-500 hover:border-red-500/50"
+            }`
       }`}
     >
       <span className="pointer-events-none relative flex h-4 w-4 items-center justify-center">

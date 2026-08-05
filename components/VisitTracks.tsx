@@ -2,7 +2,9 @@
 
 import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
+import { AnimatePresence, motion } from "framer-motion";
 import type { Photo } from "@/types/photo";
+import { useCollection } from "@/lib/useCollection";
 import {
   ROUTE_TRACKS,
   locationCoords,
@@ -104,6 +106,12 @@ interface VisitTracksProps {
 export default function VisitTracks({ photos }: VisitTracksProps) {
   const [activeRouteFilter, setActiveRouteFilter] =
     useState<RouteCategory | null>(null);
+  const {
+    bookmarkedLocations,
+    busyKeys: collectionBusyKeys,
+    toast: collectionToast,
+    toggleBookmarkLocation,
+  } = useCollection();
 
   const handleToggle = (id: RouteCategory) => {
     setActiveRouteFilter((current) => (current === id ? null : id));
@@ -266,10 +274,52 @@ export default function VisitTracks({ photos }: VisitTracksProps) {
                         <span className="mt-1 w-px flex-1 border-l border-dashed border-slate-600" />
                       )}
                     </div>
-                    <div className="flex flex-col pt-1 pb-4">
-                      <span className="text-amber-400 font-sans tracking-widest text-[11px] uppercase font-bold mb-1">
-                        {details.time}
-                      </span>
+                    <div className="flex min-w-0 flex-1 flex-col pt-1 pb-4">
+                      <div className="mb-1 flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <span className="block text-amber-400 font-sans tracking-widest text-[11px] uppercase font-bold">
+                            {details.time}
+                          </span>
+                          <h4 className="mt-1 truncate font-display text-base font-semibold text-stone-100 md:text-lg">
+                            {location}
+                          </h4>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={collectionBusyKeys.has(
+                            `location_name:${location}`
+                          )}
+                          onClick={() => void toggleBookmarkLocation(location)}
+                          aria-pressed={bookmarkedLocations.has(location)}
+                          aria-label={
+                            bookmarkedLocations.has(location)
+                              ? `Remove ${location} from My Kuantan Trip`
+                              : `Save ${location} to My Kuantan Trip`
+                          }
+                          className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition-all disabled:cursor-wait disabled:opacity-60 ${
+                            bookmarkedLocations.has(location)
+                              ? "border-amber-400/70 bg-amber-400/15 text-amber-400 shadow-[0_0_18px_rgba(251,191,36,0.25)]"
+                              : "border-slate-700 bg-slate-800/80 text-stone-400 hover:border-amber-400/60 hover:text-amber-400"
+                          }`}
+                        >
+                          <svg
+                            viewBox="0 0 24 24"
+                            className="h-4 w-4"
+                            fill={
+                              bookmarkedLocations.has(location)
+                                ? "currentColor"
+                                : "none"
+                            }
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            aria-hidden
+                          >
+                            <path d="M6 4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18l-6-4-6 4V4z" />
+                          </svg>
+                        </button>
+                      </div>
                       <p className="text-stone-300 font-serif text-sm md:text-base leading-relaxed">
                         {details.activity}
                       </p>
@@ -286,6 +336,20 @@ export default function VisitTracks({ photos }: VisitTracksProps) {
           )}
         </div>
       )}
+
+      <AnimatePresence>
+        {collectionToast ? (
+          <motion.div
+            initial={{ opacity: 0, y: 18, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 12, scale: 0.97 }}
+            role="status"
+            className="fixed bottom-6 left-1/2 z-[100001] w-[calc(100%_-_2rem)] max-w-sm -translate-x-1/2 rounded-2xl border border-amber-400/25 bg-slate-900/95 px-5 py-3 text-center text-sm text-stone-100 shadow-2xl backdrop-blur-xl"
+          >
+            {collectionToast}
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </>
   );
 }

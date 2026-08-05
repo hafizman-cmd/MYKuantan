@@ -17,6 +17,7 @@ const NAV_LINKS = [
   { label: "Stories", href: "/stories" },
   { label: "Gallery", href: "/gallery" },
   { label: "Visit", href: "/visit" },
+  { label: "My Trip", href: "/collection" },
 ];
 
 export default function Navbar() {
