@@ -425,7 +425,7 @@ export default function CollectionPage() {
                 frames, and plan your coastal escape.
               </p>
               <Link
-                href="/submit"
+                href="/submit?redirectTo=%2Fcollection"
                 className="mt-8 inline-flex items-center justify-center rounded-full bg-amber-400 px-7 py-3 text-xs font-bold uppercase tracking-[0.2em] text-[#0B192C] transition-colors hover:bg-amber-300"
               >
                 Sign In / Sign Up

@@ -37,6 +37,16 @@ const COMPRESS_QUALITY = 0.8;
 type Status = "idle" | "compressing" | "submitting" | "success" | "error";
 type AuthMode = "signin" | "signup";
 
+function getRedirectTo(): string {
+  if (typeof window === "undefined") return "/submit";
+
+  const params = new URLSearchParams(window.location.search);
+  const requested = params.get("redirectTo") || params.get("next");
+  return requested?.startsWith("/") && !requested.startsWith("//")
+    ? requested
+    : "/submit";
+}
+
 interface ContributorProfile {
   username: string;
   display_name: string | null;
@@ -126,8 +136,8 @@ function Field({
         {required ? <span className="text-[#0F3460]"> *</span> : null}
       </span>
       {children}
-      </label>
-    );
+    </label>
+  );
 }
 
 function sanitizeHandle(raw: string): string {
@@ -137,6 +147,24 @@ function sanitizeHandle(raw: string): string {
     .replace(/^@+/, "")
     .replace(/[^a-z0-9_.]/g, "")
     .slice(0, 32);
+}
+
+function uploaderHandle(name: string): string {
+  const trimmed = (name ?? "").trim();
+  if (!trimmed) return "@anonymous";
+  return trimmed.startsWith("@") ? trimmed : `@${trimmed}`;
+}
+
+function formatUploadDate(iso: string): string {
+  try {
+    return new Date(iso).toLocaleDateString("en-MY", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  } catch {
+    return iso;
+  }
 }
 
 export default function SubmitPage() {
@@ -297,7 +325,9 @@ export default function SubmitPage() {
     try {
       const { error } = await supabaseClient.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: window.location.origin + "/submit" },
+        options: {
+          redirectTo: window.location.origin + getRedirectTo(),
+        },
       });
       if (error) throw error;
     } catch (err) {
@@ -322,16 +352,19 @@ export default function SubmitPage() {
       const result =
         authMode === "signin"
           ? await supabaseClient.auth.signInWithPassword({
-              email: trimmedEmail,
-              password,
-            })
+            email: trimmedEmail,
+            password,
+          })
           : await supabaseClient.auth.signUp({
-              email: trimmedEmail,
-              password,
-            });
+            email: trimmedEmail,
+            password,
+          });
       if (result.error) throw result.error;
       // Session state will arrive via onAuthStateChange. Clear password field.
       setPassword("");
+      if (result.data.session) {
+        router.push(getRedirectTo());
+      }
     } catch (err) {
       setAuthLoading(false);
       setErrorMsg(
@@ -472,6 +505,11 @@ export default function SubmitPage() {
           ? "Submitted"
           : "Publish Frame";
 
+  const previewAuthor = uploaderHandle(
+    profile?.username ? `@${profile.username}` : displayName
+  );
+  const previewDate = formatUploadDate(new Date().toISOString());
+
   const inputClass =
     "w-full rounded-xl border border-stone-300 bg-white/80 px-4 py-3 text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-[#0F3460] focus:ring-2 focus:ring-[#0F3460]/15 transition";
 
@@ -524,11 +562,10 @@ export default function SubmitPage() {
                     setAuthMode(mode);
                     setErrorMsg(null);
                   }}
-                  className={`rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] transition-colors ${
-                    authMode === mode
+                  className={`rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] transition-colors ${authMode === mode
                       ? "bg-[#0F3460] text-[#F5F0E8]"
                       : "text-stone-600 hover:text-[#0F3460]"
-                  }`}
+                    }`}
                 >
                   {mode === "signin" ? "Sign In" : "Create Account"}
                 </button>
@@ -646,7 +683,7 @@ export default function SubmitPage() {
       </header>
 
       <main className="mx-auto w-full max-w-[1600px] flex-1 px-6 py-10 md:px-16 md:py-14">
-        <div className="mx-auto w-full max-w-2xl">
+        <div className="mx-auto w-full max-w-5xl">
           <div className="mb-8">
             <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.3em] text-[#0F3460]">
               Contribute
@@ -736,159 +773,233 @@ export default function SubmitPage() {
               </p>
             </div>
           ) : (
-            <form
-              onSubmit={handleSubmit}
-              className="rounded-[2rem] border border-stone-200/70 bg-white/60 p-7 shadow-[0_18px_60px_rgba(15,52,96,0.06)] backdrop-blur-sm md:p-10"
-            >
-              <label
-                onDragOver={(e: DragEvent<HTMLLabelElement>) => {
-                  e.preventDefault();
-                  setDragging(true);
-                }}
-                onDragLeave={() => setDragging(false)}
-                onDrop={onDrop}
-                className={`relative block w-full cursor-pointer overflow-hidden rounded-[1.5rem] border-2 border-dashed transition-colors duration-300 ${
-                  dragging
-                    ? "border-[#0F3460] bg-[#0F3460]/5"
-                    : "border-stone-300 bg-white/50 hover:border-[#0F3460]/60"
-                }`}
+            <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-2">
+              <form
+                onSubmit={handleSubmit}
+                className="rounded-[2rem] border border-stone-200/70 bg-white/60 p-7 shadow-[0_18px_60px_rgba(15,52,96,0.06)] backdrop-blur-sm md:p-10"
               >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={onInputChange}
-                  className="sr-only"
-                />
-
-                {previewUrl ? (
-                  <div className="relative w-full aspect-[16/10]">
-                    <Image
-                      src={previewUrl}
-                      alt="Selected preview"
-                      fill
-                      sizes="(max-width: 768px) 100vw, 640px"
-                      className="object-cover"
-                      unoptimized
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                    <span className="absolute bottom-4 left-4 rounded-full bg-white/85 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-800 backdrop-blur-md">
-                      {file?.name}
-                    </span>
-                    <span className="pointer-events-none absolute bottom-4 right-4 rounded-full bg-white/85 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#0F3460] backdrop-blur-md">
-                      Click to replace
-                    </span>
-                  </div>
-                ) : (
-                  <div className="flex w-full aspect-[16/10] flex-col items-center justify-center px-6 py-10 text-center">
-                    <span className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#0F3460]/10 text-[#0F3460]">
-                      <svg
-                        width="24"
-                        height="24"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                        <polyline points="17 8 12 3 7 8" />
-                        <line x1="12" y1="3" x2="12" y2="15" />
-                      </svg>
-                    </span>
-                    <span className="mb-1 font-display text-lg font-semibold text-stone-900">
-                      Drop image here
-                    </span>
-                    <span className="text-sm text-stone-500">
-                      or click to browse · JPG, PNG, WebP
-                    </span>
-                  </div>
-                )}
-              </label>
-
-              <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2">
-                <Field label="Contributor Display Name" required>
-                  <input
-                    type="text"
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    placeholder="Your name"
-                    required
-                    readOnly={!!profile}
-                    className={`${inputClass} ${
-                      profile
-                        ? "cursor-not-allowed bg-stone-100/80 text-stone-500"
-                        : ""
+                <label
+                  onDragOver={(e: DragEvent<HTMLLabelElement>) => {
+                    e.preventDefault();
+                    setDragging(true);
+                  }}
+                  onDragLeave={() => setDragging(false)}
+                  onDrop={onDrop}
+                  className={`relative block w-full cursor-pointer overflow-hidden rounded-[1.5rem] border-2 border-dashed transition-colors duration-300 ${dragging
+                      ? "border-[#0F3460] bg-[#0F3460]/5"
+                      : "border-stone-300 bg-white/50 hover:border-[#0F3460]/60"
                     }`}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={onInputChange}
+                    className="sr-only"
                   />
-                  {profile && (
-                    <span className="mt-1.5 block text-[10px] font-semibold uppercase tracking-[0.2em] text-stone-400">
-                      Locked to your handle @{profile.username}
-                    </span>
+
+                  {previewUrl ? (
+                    <div className="relative w-full aspect-[16/10]">
+                      <Image
+                        src={previewUrl}
+                        alt="Selected preview"
+                        fill
+                        sizes="(max-width: 768px) 100vw, 640px"
+                        className="object-cover"
+                        unoptimized
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                      <span className="absolute bottom-4 left-4 rounded-full bg-white/85 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-800 backdrop-blur-md">
+                        {file?.name}
+                      </span>
+                      <span className="pointer-events-none absolute bottom-4 right-4 rounded-full bg-white/85 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#0F3460] backdrop-blur-md">
+                        Click to replace
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex w-full aspect-[16/10] flex-col items-center justify-center px-6 py-10 text-center">
+                      <span className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#0F3460]/10 text-[#0F3460]">
+                        <svg
+                          width="24"
+                          height="24"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="17 8 12 3 7 8" />
+                          <line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
+                      </span>
+                      <span className="mb-1 font-display text-lg font-semibold text-stone-900">
+                        Drop image here
+                      </span>
+                      <span className="text-sm text-stone-500">
+                        or click to browse · JPG, PNG, WebP
+                      </span>
+                    </div>
                   )}
-                </Field>
-                <Field label="Location" required>
-                  <select
-                    value={location}
-                    onChange={(e) => {
-                      const name = e.target.value;
-                      setLocation(name);
-                      setCoords(name ? getCoordinatesByName(name) : null);
-                    }}
-                    required
-                    className={inputClass}
+                </label>
+
+                <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-start">
+                  <Field label="Contributor Name" required>
+                    <input
+                      type="text"
+                      value={displayName}
+                      onChange={(e) => setDisplayName(e.target.value)}
+                      placeholder="Your name"
+                      required
+                      readOnly={!!profile}
+                      className={`${inputClass} ${profile
+                          ? "cursor-not-allowed bg-stone-100/80 text-stone-500"
+                          : ""
+                        }`}
+                    />
+                    {profile && (
+                      <span className="mt-1.5 block text-[10px] font-semibold uppercase tracking-[0.2em] text-stone-400">
+                        Locked to your handle @{profile.username}
+                      </span>
+                    )}
+                  </Field>
+                  <Field label="Location" required>
+                    <select
+                      value={location}
+                      onChange={(e) => {
+                        const name = e.target.value;
+                        setLocation(name);
+                        setCoords(name ? getCoordinatesByName(name) : null);
+                      }}
+                      required
+                      className={inputClass}
+                    >
+                      <option value="" disabled>
+                        Select a location
+                      </option>
+                      {[...KUANTAN_LOCATIONS]
+                        .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
+                        .map((l) => (
+                          <option key={l.name} value={l.name}>
+                            {l.name}
+                          </option>
+                        ))}
+                    </select>
+                  </Field>
+                </div>
+
+                <div className="mt-5">
+                  <Field label="Caption">
+                    <textarea
+                      value={caption}
+                      onChange={(e) => setCaption(e.target.value)}
+                      placeholder="A line or two about this frame..."
+                      rows={3}
+                      className={`${inputClass} resize-none`}
+                    />
+                  </Field>
+                </div>
+
+                {errorMsg && (
+                  <p className="mt-5 break-words rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-relaxed text-red-700">
+                    {errorMsg}
+                  </p>
+                )}
+
+                <div className="mt-7 flex items-center justify-end gap-3">
+                  <a
+                    href="/"
+                    className="rounded-full px-6 py-3 text-[12px] font-semibold uppercase tracking-[0.2em] text-stone-600 transition-colors hover:text-stone-900"
                   >
-                    <option value="" disabled>
-                      Select a location
-                    </option>
-                    {[...KUANTAN_LOCATIONS]
-                      .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
-                      .map((l) => (
-                        <option key={l.name} value={l.name}>
-                          {l.name}
-                        </option>
-                      ))}
-                  </select>
-                </Field>
-              </div>
+                    Cancel
+                  </a>
+                  <button
+                    type="submit"
+                    disabled={
+                      status === "compressing" || status === "submitting"
+                    }
+                    className="inline-flex items-center gap-2 rounded-full bg-[#0F3460] px-7 py-3 text-[12px] font-semibold uppercase tracking-[0.2em] text-[#F5F0E8] transition-colors hover:bg-[#1A4A7A] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {submitLabel}
+                  </button>
+                </div>
+              </form>
 
-              <div className="mt-5">
-                <Field label="Caption">
-                  <textarea
-                    value={caption}
-                    onChange={(e) => setCaption(e.target.value)}
-                    placeholder="A line or two about this frame..."
-                    rows={3}
-                    className={`${inputClass} resize-none`}
-                  />
-                </Field>
-              </div>
-
-              {errorMsg && (
-                <p className="mt-5 break-words rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-relaxed text-red-700">
-                  {errorMsg}
+              <aside className="lg:sticky lg:top-24">
+                <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.3em] text-[#0F3460]">
+                  Live Preview
                 </p>
-              )}
+                <article className="flex flex-col overflow-hidden rounded-2xl bg-[#0d1f35] ring-1 ring-white/5">
+                  <div className="relative aspect-[4/3] w-full overflow-hidden">
+                    {previewUrl ? (
+                      <>
+                        <Image
+                          src={previewUrl}
+                          alt="Live preview"
+                          fill
+                          sizes="(max-width: 1024px) 100vw, 50vw"
+                          className="h-full w-full object-cover"
+                          unoptimized
+                        />
+                        <span className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+                      </>
+                    ) : (
+                      <div className="flex h-full w-full flex-col items-center justify-center bg-[#0d1f35] px-6 text-center">
+                        <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-white/5 text-[#F5F0E8]/40">
+                          <svg
+                            width="22"
+                            height="22"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <rect x="3" y="3" width="18" height="18" rx="2" />
+                            <circle cx="8.5" cy="8.5" r="1.5" />
+                            <path d="M21 15l-5-5L5 21" />
+                          </svg>
+                        </span>
+                        <span className="font-display text-sm font-medium text-[#F5F0E8]/50">
+                          Your frame will appear here
+                        </span>
+                        <span className="mt-1 text-[11px] text-[#F5F0E8]/30">
+                          Upload an image to preview the card
+                        </span>
+                      </div>
+                    )}
 
-              <div className="mt-7 flex items-center justify-end gap-3">
-                <a
-                  href="/"
-                  className="rounded-full px-6 py-3 text-[12px] font-semibold uppercase tracking-[0.2em] text-stone-600 transition-colors hover:text-stone-900"
-                >
-                  Cancel
-                </a>
-                <button
-                  type="submit"
-                  disabled={
-                    status === "compressing" || status === "submitting"
-                  }
-                  className="inline-flex items-center gap-2 rounded-full bg-[#0F3460] px-7 py-3 text-[12px] font-semibold uppercase tracking-[0.2em] text-[#F5F0E8] transition-colors hover:bg-[#1A4A7A] disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {submitLabel}
-                </button>
-              </div>
-            </form>
+                    {location && (
+                      <span className="absolute left-3 top-3 z-10 inline-flex w-fit max-w-[85%] items-center rounded-full border border-white/25 bg-white/15 px-3 py-1 text-[10px] font-medium uppercase tracking-[0.2em] leading-relaxed text-[#F5F0E8] backdrop-blur-md break-words whitespace-normal">
+                        {location}
+                      </span>
+                    )}
+
+                    <div className="absolute bottom-3 left-3 right-3 z-10 flex items-center justify-between gap-2">
+                      <span className="max-w-[70%] break-words whitespace-normal text-xs font-medium tracking-wide text-[#F5F0E8]">
+                        {previewAuthor}
+                      </span>
+                      <span className="font-mono text-[10px] tracking-wide text-[#F5F0E8]/70">
+                        {previewDate}
+                      </span>
+                    </div>
+                  </div>
+
+                  <p className="break-words whitespace-normal px-4 pt-3 pb-4 font-light leading-relaxed text-sm text-[#F5F0E8]/85">
+                    {caption.trim() || (
+                      <span className="text-[#F5F0E8]/40">
+                        Your caption will appear here...
+                      </span>
+                    )}
+                  </p>
+                </article>
+                <p className="mt-4 text-center text-[10px] uppercase tracking-[0.2em] text-stone-400">
+                  Preview updates as you compose
+                </p>
+              </aside>
+            </div>
           )}
         </div>
       </main>
