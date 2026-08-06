@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import type { Photo } from "@/types/photo";
 
@@ -241,15 +242,38 @@ export default function Hero({ latestPhotos }: HeroProps) {
           })}
         </div>
 
-        <div className="mt-6 flex items-center justify-center gap-2">
-          {slides.map((_, i) => (
-            <span
-              key={i}
-              className={`h-1 rounded-full transition-all duration-500 ${
-                i === active ? "w-10 bg-[#0F3460]" : "w-2.5 bg-stone-400/50"
-              }`}
-            />
-          ))}
+        <div className="flex flex-col items-center justify-center gap-4 mt-6">
+          <div className="flex items-center justify-center gap-2">
+            {slides.map((_, i) => (
+              <span
+                key={i}
+                className={`h-1 rounded-full transition-all duration-500 ${
+                  i === active ? "w-10 bg-[#0F3460]" : "w-2.5 bg-stone-400/50"
+                }`}
+              />
+            ))}
+          </div>
+
+          <Link
+            href="/gallery"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-[#0a1726]/15 bg-white/40 hover:bg-white/80 backdrop-blur-sm shadow-sm hover:scale-105 text-xs tracking-[0.2em] text-[#0a1726]/80 hover:text-[#0a1726] font-medium transition-all duration-300 uppercase"
+          >
+            Explore Full Gallery
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M5 12h14" />
+              <path d="M13 6l6 6-6 6" />
+            </svg>
+          </Link>
         </div>
       </div>
     </section>
