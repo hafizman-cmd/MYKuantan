@@ -118,8 +118,15 @@ export default function Hero({ latestPhotos }: HeroProps) {
   }, []);
 
   return (
-    <section id="lookbook" className="w-full overflow-hidden block">
-      <div className="w-full max-w-[1600px] mx-auto px-6 lg:px-16 pt-20 pb-6">
+    <section id="lookbook" className="relative w-full overflow-hidden block">
+      <Image
+        src="/HOMEPAGE-bg.webp"
+        alt=""
+        fill
+        priority
+        className="object-cover object-center opacity-25 pointer-events-none z-0"
+      />
+      <div className="relative z-10 w-full max-w-[1600px] mx-auto px-6 lg:px-16 pt-20 pb-6">
         <div className="w-full max-w-3xl flex flex-col items-center justify-center text-center mx-auto mb-12">
           {coastalData && (
             <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-1 mb-6 text-[10px] uppercase tracking-[0.25em] animate-fade-in">
