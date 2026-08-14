@@ -413,6 +413,19 @@ export default function CollectionPage() {
     setItinerarySavingKey(null);
   };
 
+  const moveLocationStop = (name: string, direction: -1 | 1) => {
+    const current = itineraryOrderRef.current;
+    const from = current.findIndex((item) => item.location_name === name);
+    const to = from + direction;
+    if (from < 0 || to < 0 || to >= current.length) return;
+    const next = [...current];
+    const [moved] = next.splice(from, 1);
+    if (!moved) return;
+    next.splice(to, 0, moved);
+    handleReorder(next);
+    void persistItineraryOrder();
+  };
+
   return (
     <div className="collection-page flex min-h-screen w-full flex-col bg-[#0B192C] text-stone-100">
       <Navbar />
@@ -574,18 +587,18 @@ export default function CollectionPage() {
                       </p>
                       {isTouch ? (
                         <p className="mt-2 inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-300/80">
-                          <span aria-hidden>✋</span>
-                          Press &amp; hold the ::: grip to drag a stop
+                          <span aria-hidden>↕</span>
+                          Use the arrow buttons to reorder stops
                         </p>
                       ) : null}
                     </div>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="grid w-full grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
                       {googleMapsRouteUrl ? (
                         <a
                           href={googleMapsRouteUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="bg-amber-500 text-stone-950 font-bold rounded-full px-5 py-2.5 hover:bg-amber-400 text-[11px] uppercase tracking-[0.12em] transition-colors"
+                          className="inline-flex items-center justify-center rounded-full bg-amber-500 px-5 py-2.5 text-center text-[11px] font-bold uppercase tracking-[0.12em] text-stone-950 transition-colors hover:bg-amber-400"
                         >
                           Open Google Maps Route ↗
                         </a>
@@ -593,7 +606,7 @@ export default function CollectionPage() {
                       <button
                         type="button"
                         onClick={() => window.print()}
-                        className="rounded-full border border-slate-600 bg-slate-800 px-5 py-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-stone-200 transition-colors hover:border-stone-400 hover:text-white"
+                        className="inline-flex items-center justify-center rounded-full border border-slate-600 bg-slate-800 px-5 py-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-stone-200 transition-colors hover:border-stone-400 hover:text-white"
                       >
                         Print / Save as PDF 🖨️
                       </button>
@@ -624,6 +637,8 @@ export default function CollectionPage() {
                           void saveLocationField(name, field, value)
                         }
                         onPersistOrder={persistItineraryOrder}
+                        onMove={moveLocationStop}
+                        total={savedLocationRows.length}
                       />
                     ))}
                   </Reorder.Group>
@@ -1034,6 +1049,137 @@ function EmptyCollection({
   );
 }
 
+function TimePicker({
+  value,
+  open,
+  onOpenChange,
+  onSelect,
+}: {
+  value: string | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSelect: (value: string) => void;
+}) {
+  const [meridiem, setMeridiem] = useState<"AM" | "PM">("AM");
+  const display = value && value.trim().length > 0 ? value : "Flexible";
+
+  const toggle = () => {
+    if (!open) {
+      setMeridiem(/\bPM\b/i.test(value ?? "") ? "PM" : "AM");
+    }
+    onOpenChange(!open);
+  };
+
+  const choose = (next: string) => {
+    onSelect(next);
+    onOpenChange(false);
+  };
+
+  return (
+    <div className={`relative ${open ? "z-30" : ""}`}>
+      <button
+        type="button"
+        onClick={toggle}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        className={`flex h-9 w-full items-center justify-between gap-1 rounded-xl border bg-slate-900/80 px-3 text-xs text-stone-200 transition-colors sm:h-10 ${
+          open ? "border-amber-400" : "border-slate-700/70"
+        }`}
+      >
+        <span className="truncate">{display}</span>
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          className="h-3 w-3 shrink-0 text-stone-500"
+          aria-hidden
+        >
+          <path
+            d="m6 10 6 6 6-6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
+      {open ? (
+        <>
+          <div
+            className="fixed inset-0 z-40"
+            aria-hidden
+            onPointerDown={() => onOpenChange(false)}
+          />
+          <div
+            role="listbox"
+            aria-label="Pick a time"
+            className="absolute left-0 top-full z-50 mt-2 w-44 rounded-xl border border-slate-700 bg-slate-900 shadow-2xl"
+          >
+            <div className="flex items-center justify-between gap-1 border-b border-slate-800 p-1.5">
+              <button
+                type="button"
+                onClick={() => choose("Flexible")}
+                className={`rounded-lg px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.14em] transition-colors ${
+                  display === "Flexible"
+                    ? "bg-amber-400 text-[#0B192C]"
+                    : "text-stone-400 hover:bg-slate-800 hover:text-stone-200"
+                }`}
+              >
+                Flexible
+              </button>
+              <div className="flex rounded-lg bg-slate-800 p-0.5">
+                {(["AM", "PM"] as const).map((half) => (
+                  <button
+                    key={half}
+                    type="button"
+                    onClick={() => setMeridiem(half)}
+                    className={`rounded-md px-2 py-0.5 text-[9px] font-bold tracking-[0.14em] transition-colors ${
+                      meridiem === half
+                        ? "bg-amber-400 text-[#0B192C]"
+                        : "text-stone-400 hover:text-stone-200"
+                    }`}
+                  >
+                    {half}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <ul className="max-h-44 overflow-y-auto p-1">
+              {TIME_PICKER_SLOTS.map((slot) => {
+                const full = `${slot} ${meridiem}`;
+                const selected = display === full;
+                return (
+                  <li key={slot}>
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={selected}
+                      onClick={() => choose(full)}
+                      className={`w-full rounded-lg px-2.5 py-1.5 text-left font-mono text-[11px] transition-colors ${
+                        selected
+                          ? "bg-amber-400 font-bold text-[#0B192C]"
+                          : "text-stone-300 hover:bg-slate-800"
+                      }`}
+                    >
+                      {full}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+const TIME_PICKER_SLOTS = Array.from({ length: 24 }, (_, slotIndex) => {
+  const hour24 = Math.floor(slotIndex / 2);
+  const minute = slotIndex % 2 === 0 ? "00" : "30";
+  const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
+  return `${String(hour12).padStart(2, "0")}:${minute}`;
+});
+
 function ItineraryRow({
   row,
   index,
@@ -1045,6 +1191,8 @@ function ItineraryRow({
   onUpdateDraft,
   onSaveField,
   onPersistOrder,
+  onMove,
+  total,
 }: {
   row: ItineraryItem;
   index: number;
@@ -1064,12 +1212,15 @@ function ItineraryRow({
     value: string
   ) => void;
   onPersistOrder: () => void;
+  onMove: (name: string, direction: -1 | 1) => void;
+  total: number;
 }) {
   const controls = useDragControls();
   const longPressTimer = useRef<number | null>(null);
   const startPoint = useRef<{ x: number; y: number } | null>(null);
   const didDragRef = useRef(false);
   const [isArmingHold, setIsArmingHold] = useState(false);
+  const [timePickerOpen, setTimePickerOpen] = useState(false);
 
   const name = row.location_name;
   const removeKey = `location_name:${name}`;
@@ -1163,69 +1314,143 @@ function ItineraryRow({
         scale: 1.015,
         boxShadow: "0 24px 60px rgba(0,0,0,0.38)",
       }}
-      className={`rounded-2xl border bg-slate-900/70 p-5 shadow-lg transition-shadow ${
+      className={`rounded-2xl border bg-slate-900/70 p-4 shadow-lg transition-shadow sm:p-5 ${
+        timePickerOpen ? "relative z-30" : ""
+      } ${
         isArmingHold
           ? "border-amber-400/70 ring-2 ring-amber-400/40"
           : "border-slate-700/70"
       }`}
       {...dragConfig}
     >
-      <div className="flex flex-col gap-4 md:flex-row md:items-center">
-        <span
-          aria-hidden
-          onPointerDown={isTouch ? handleTouchStart : undefined}
-          onPointerMove={isTouch ? handleTouchMove : undefined}
-          onPointerUp={isTouch ? handleTouchEnd : undefined}
-          onPointerCancel={isTouch ? handleTouchEnd : undefined}
-          style={isTouch ? { touchAction: "none" } : undefined}
-          className={`print-hidden flex shrink-0 select-none items-center justify-center font-mono text-lg tracking-[-0.18em] text-stone-500 transition-colors active:cursor-grabbing ${
-            isTouch
-              ? "cursor-grab -ml-1.5 mr-0.5 h-11 w-9"
-              : "cursor-grab hover:text-amber-400"
-          } ${isArmingHold ? "!text-amber-400" : ""}`}
-        >
-          :::
-        </span>
-
-        <div className="flex items-center gap-3 md:w-56 md:shrink-0">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-amber-400 text-xs font-bold text-[#0B192C]">
-            {String(index + 1).padStart(2, "0")}
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-4">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3 md:contents">
+          <span
+            aria-hidden
+            onPointerDown={isTouch ? handleTouchStart : undefined}
+            onPointerMove={isTouch ? handleTouchMove : undefined}
+            onPointerUp={isTouch ? handleTouchEnd : undefined}
+            onPointerCancel={isTouch ? handleTouchEnd : undefined}
+            style={isTouch ? { touchAction: "none" } : undefined}
+            className={`print-hidden flex shrink-0 select-none items-center justify-center font-mono text-lg tracking-[-0.18em] text-stone-500 transition-colors active:cursor-grabbing ${
+              isTouch
+                ? "cursor-grab -ml-1.5 mr-0.5 h-9 w-7 sm:h-11 sm:w-9"
+                : "cursor-grab hover:text-amber-400"
+            } ${isArmingHold ? "!text-amber-400" : ""}`}
+          >
+            :::
           </span>
-          <div className="min-w-0 flex-1">
-            <h3 className="truncate font-display text-xl font-semibold text-stone-100">
-              {name}
-            </h3>
-            <p className="mt-1 font-mono text-[10px] tracking-wide text-stone-500">
-              {details
-                ? `${details.latitude.toFixed(6)}, ${details.longitude.toFixed(6)}`
-                : "Coordinates unavailable"}
-            </p>
+
+          <div className="flex min-w-0 flex-1 items-center gap-2.5 sm:gap-3 md:w-56 md:flex-none md:shrink-0">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-400 text-[10px] font-bold text-[#0B192C] sm:h-11 sm:w-11 sm:text-xs">
+              {String(index + 1).padStart(2, "0")}
+            </span>
+            <div className="min-w-0 flex-1">
+              <h3 className="truncate font-display text-base font-semibold text-stone-100 sm:text-xl">
+                {name}
+              </h3>
+              <p className="mt-0.5 truncate font-mono text-[9px] tracking-wide text-stone-500 sm:mt-1 sm:text-[10px]">
+                {details
+                  ? `${details.latitude.toFixed(6)}, ${details.longitude.toFixed(6)}`
+                  : "Coordinates unavailable"}
+              </p>
+            </div>
+          </div>
+
+          <div
+            className="print-hidden ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2 md:order-last"
+            onPointerDown={(event) => event.stopPropagation()}
+          >
+            <div className="flex flex-col gap-1">
+              <button
+                type="button"
+                aria-label={`Move ${name} up to position ${index}`}
+                disabled={index === 0 || rowIsSaving}
+                onClick={() => onMove(name, -1)}
+                className="rounded-md border border-slate-700/70 bg-slate-800/80 p-1 text-stone-400 transition-colors hover:border-amber-400/60 hover:text-amber-400 disabled:cursor-not-allowed disabled:opacity-30"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  className="h-3.5 w-3.5"
+                  aria-hidden
+                >
+                  <path
+                    d="m6 14 6-6 6 6"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+              <button
+                type="button"
+                aria-label={`Move ${name} down to position ${index + 2}`}
+                disabled={index >= total - 1 || rowIsSaving}
+                onClick={() => onMove(name, 1)}
+                className="rounded-md border border-slate-700/70 bg-slate-800/80 p-1 text-stone-400 transition-colors hover:border-amber-400/60 hover:text-amber-400 disabled:cursor-not-allowed disabled:opacity-30"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  className="h-3.5 w-3.5"
+                  aria-hidden
+                >
+                  <path
+                    d="m6 10 6 6 6-6"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+            </div>
+            <button
+              type="button"
+              disabled={removingKey === removeKey}
+              onClick={() => onRemove(name)}
+              aria-label={`Remove ${name} from itinerary`}
+              className="flex items-center gap-1.5 rounded-full border border-rose-400/30 px-2 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-rose-300 transition-colors hover:bg-rose-400/10 disabled:cursor-wait disabled:opacity-50 sm:px-3"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                className="h-3.5 w-3.5 sm:hidden"
+                aria-hidden
+              >
+                <path d="M6 6l12 12M18 6 6 18" strokeLinecap="round" />
+              </svg>
+              <span className="hidden sm:inline">
+                {removingKey === removeKey ? "Removing..." : "Remove"}
+              </span>
+            </button>
           </div>
         </div>
 
         <div
-          className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-3 items-center mx-2 sm:mx-4"
+          className="grid flex-1 grid-cols-[6.75rem_1fr] items-center gap-2 sm:grid-cols-3 sm:gap-3 md:mx-2"
           onPointerDown={(event) => event.stopPropagation()}
         >
-          <label className="block sm:col-span-1">
-            <span className="mb-1.5 block text-[9px] font-semibold uppercase tracking-[0.2em] text-stone-500">
+          <div className="block">
+            <span className="mb-1 block text-[9px] font-semibold uppercase tracking-[0.2em] text-stone-500">
               Time
             </span>
-            <input
-              type="text"
-              value={row.custom_time ?? "Flexible"}
-              placeholder="09:00 AM"
-              onChange={(event) =>
-                onUpdateDraft(name, "custom_time", event.target.value)
-              }
-              onBlur={(event) =>
-                onSaveField(name, "custom_time", event.currentTarget.value)
-              }
-              className="w-full h-10 bg-slate-900/80 border border-slate-700/70 rounded-xl px-3 text-xs text-stone-200 focus:outline-none focus:border-amber-400 transition-colors flex items-center"
+            <TimePicker
+              value={row.custom_time}
+              open={timePickerOpen}
+              onOpenChange={setTimePickerOpen}
+              onSelect={(next) => {
+                onUpdateDraft(name, "custom_time", next);
+                onSaveField(name, "custom_time", next);
+              }}
             />
-          </label>
+          </div>
           <label className="block sm:col-span-2">
-            <span className="mb-1.5 block text-[9px] font-semibold uppercase tracking-[0.2em] text-stone-500">
+            <span className="mb-1 block text-[9px] font-semibold uppercase tracking-[0.2em] text-stone-500">
               Notes
             </span>
             <textarea
@@ -1238,23 +1463,9 @@ function ItineraryRow({
                 onSaveField(name, "custom_notes", event.currentTarget.value)
               }
               rows={1}
-              className="w-full h-10 bg-slate-900/80 border border-slate-700/70 rounded-xl px-3 py-2 text-xs text-stone-200 focus:outline-none focus:border-amber-400 transition-colors placeholder:text-stone-500 resize-none flex items-center"
+              className="w-full h-9 sm:h-10 bg-slate-900/80 border border-slate-700/70 rounded-xl px-3 py-2 text-xs text-stone-200 focus:outline-none focus:border-amber-400 transition-colors placeholder:text-stone-500 resize-none flex items-center"
             />
           </label>
-        </div>
-
-        <div
-          className="print-hidden flex shrink-0 items-center gap-2"
-          onPointerDown={(event) => event.stopPropagation()}
-        >
-          <button
-            type="button"
-            disabled={removingKey === removeKey}
-            onClick={() => onRemove(name)}
-            className="rounded-full border border-rose-400/30 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-rose-300 transition-colors hover:bg-rose-400/10 disabled:cursor-wait disabled:opacity-50"
-          >
-            {removingKey === removeKey ? "Removing..." : "Remove"}
-          </button>
         </div>
       </div>
       {rowIsSaving ? (
