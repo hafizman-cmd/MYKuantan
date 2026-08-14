@@ -575,7 +575,7 @@ export default function CollectionPage() {
                       {isTouch ? (
                         <p className="mt-2 inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-300/80">
                           <span aria-hidden>✋</span>
-                          Press &amp; hold a stop to drag it
+                          Press &amp; hold the ::: grip to drag a stop
                         </p>
                       ) : null}
                     </div>
@@ -1116,14 +1116,30 @@ function ItineraryRow({
     }
   };
 
-  const touchHandlers = isTouch
-    ? {
-        onPointerDown: handleCardPointerDown,
-        onPointerMove: handleCardPointerMove,
-        onPointerUp: clearLongPress,
-        onPointerCancel: clearLongPress,
-      }
-    : {};
+  const handleTouchStart = (
+    event: ReactPointerEvent<HTMLElement>
+  ): void => {
+    if (isTouch) {
+      event.stopPropagation();
+      handleCardPointerDown(event);
+    }
+  };
+
+  const handleTouchMove = (
+    event: ReactPointerEvent<HTMLElement>
+  ): void => {
+    if (!isTouch) return;
+    event.stopPropagation();
+    handleCardPointerMove(event);
+  };
+
+  const handleTouchEnd = (
+    event: ReactPointerEvent<HTMLElement>
+  ): void => {
+    if (!isTouch) return;
+    event.stopPropagation();
+    clearLongPress();
+  };
 
   const dragConfig = isTouch
     ? { dragListener: false as const, dragControls: controls }
@@ -1153,14 +1169,20 @@ function ItineraryRow({
           : "border-slate-700/70"
       }`}
       {...dragConfig}
-      {...touchHandlers}
     >
       <div className="flex flex-col gap-4 md:flex-row md:items-center">
         <span
           aria-hidden
-          className={`print-hidden shrink-0 select-none font-mono text-lg tracking-[-0.18em] text-stone-500 transition-colors active:cursor-grabbing ${
-            isTouch ? "cursor-grab" : "cursor-grab hover:text-amber-400"
-          }`}
+          onPointerDown={isTouch ? handleTouchStart : undefined}
+          onPointerMove={isTouch ? handleTouchMove : undefined}
+          onPointerUp={isTouch ? handleTouchEnd : undefined}
+          onPointerCancel={isTouch ? handleTouchEnd : undefined}
+          style={isTouch ? { touchAction: "none" } : undefined}
+          className={`print-hidden flex shrink-0 select-none items-center justify-center font-mono text-lg tracking-[-0.18em] text-stone-500 transition-colors active:cursor-grabbing ${
+            isTouch
+              ? "cursor-grab -ml-1.5 mr-0.5 h-11 w-9"
+              : "cursor-grab hover:text-amber-400"
+          } ${isArmingHold ? "!text-amber-400" : ""}`}
         >
           :::
         </span>
