@@ -1,16 +1,23 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import Image from "next/image";
 import Link from "next/link";
 import type { User } from "@supabase/supabase-js";
-import { AnimatePresence, motion, Reorder } from "framer-motion";
+import { AnimatePresence, motion, Reorder, useDragControls } from "framer-motion";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import LikeButton, {
   fetchAuthedLikedSet,
 } from "@/components/LikeButton";
-import { KUANTAN_LOCATIONS } from "@/lib/locations";
+import { KUANTAN_LOCATIONS, type KuantanLocation } from "@/lib/locations";
 import { supabaseClient } from "@/lib/supabase/client";
 import type { Photo } from "@/types/photo";
 
@@ -56,6 +63,7 @@ export default function CollectionPage() {
   );
   const itineraryOrderRef = useRef<ItineraryItem[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [isTouch, setIsTouch] = useState(false);
   const selectedPhoto =
     savedPhotos.find((photo) => photo.id === selectedPhotoId) ?? null;
 
@@ -193,6 +201,19 @@ export default function CollectionPage() {
   useEffect(() => {
     itineraryOrderRef.current = savedLocationRows;
   }, [savedLocationRows]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mq = window.matchMedia("(pointer: coarse)");
+    const update = () => setIsTouch(mq.matches);
+    update();
+    if (typeof mq.addEventListener === "function") {
+      mq.addEventListener("change", update);
+      return () => mq.removeEventListener("change", update);
+    }
+    mq.addListener(update);
+    return () => mq.removeListener(update);
+  }, []);
 
   const locationDetails = useMemo(
     () => new Map(KUANTAN_LOCATIONS.map((location) => [location.name, location])),
@@ -551,6 +572,12 @@ export default function CollectionPage() {
                         Reorder stops, set your timing, and leave private field
                         notes.
                       </p>
+                      {isTouch ? (
+                        <p className="mt-2 inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-300/80">
+                          <span aria-hidden>✋</span>
+                          Press &amp; hold a stop to drag it
+                        </p>
+                      ) : null}
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {googleMapsRouteUrl ? (
@@ -580,134 +607,25 @@ export default function CollectionPage() {
                     onReorder={handleReorder}
                     className="space-y-4"
                   >
-                    {savedLocationRows.map((row, index) => {
-                      const name = row.location_name;
-                      const details = locationDetails.get(name);
-                      const removeKey = `location_name:${name}`;
-                      const rowIsSaving =
-                        itinerarySavingKey === "order:all" ||
-                        itinerarySavingKey?.endsWith(name);
-                      return (
-                        <Reorder.Item
-                          as="article"
-                          key={name}
-                          value={row}
-                          onDragEnd={() => void persistItineraryOrder()}
-                          whileDrag={{
-                            scale: 1.015,
-                            boxShadow: "0 24px 60px rgba(0,0,0,0.38)",
-                          }}
-                          className="rounded-2xl border border-slate-700/70 bg-slate-900/70 p-5 shadow-lg"
-                        >
-                          <div className="flex flex-col gap-4 md:flex-row md:items-center">
-                            <span
-                              aria-hidden
-                              className="print-hidden shrink-0 cursor-grab select-none font-mono text-lg tracking-[-0.18em] text-stone-500 transition-colors hover:text-amber-400 active:cursor-grabbing"
-                            >
-                              :::
-                            </span>
-
-                            <div className="flex items-center gap-3 md:w-56 md:shrink-0">
-                              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-amber-400 text-xs font-bold text-[#0B192C]">
-                                {String(index + 1).padStart(2, "0")}
-                              </span>
-                              <div className="min-w-0 flex-1">
-                                <h3 className="truncate font-display text-xl font-semibold text-stone-100">
-                                  {name}
-                                </h3>
-                                <p className="mt-1 font-mono text-[10px] tracking-wide text-stone-500">
-                                  {details
-                                    ? `${details.latitude.toFixed(6)}, ${details.longitude.toFixed(6)}`
-                                    : "Coordinates unavailable"}
-                                </p>
-                              </div>
-                            </div>
-
-                            <div
-                              className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-3 items-center mx-2 sm:mx-4"
-                              onPointerDown={(event) => event.stopPropagation()}
-                            >
-                              <label className="block sm:col-span-1">
-                                <span className="mb-1.5 block text-[9px] font-semibold uppercase tracking-[0.2em] text-stone-500">
-                                  Time
-                                </span>
-                                <input
-                                  type="text"
-                                  value={row.custom_time ?? "Flexible"}
-                                  placeholder="09:00 AM"
-                                  onChange={(event) =>
-                                    updateLocationDraft(
-                                      name,
-                                      "custom_time",
-                                      event.target.value
-                                    )
-                                  }
-                                  onBlur={(event) =>
-                                    void saveLocationField(
-                                      name,
-                                      "custom_time",
-                                      event.currentTarget.value
-                                    )
-                                  }
-                                  className="w-full h-10 bg-slate-900/80 border border-slate-700/70 rounded-xl px-3 text-xs text-stone-200 focus:outline-none focus:border-amber-400 transition-colors flex items-center"
-                                />
-                              </label>
-                              <label className="block sm:col-span-2">
-                                <span className="mb-1.5 block text-[9px] font-semibold uppercase tracking-[0.2em] text-stone-500">
-                                  Notes
-                                </span>
-                                <textarea
-                                  value={row.custom_notes ?? ""}
-                                  placeholder="Add a note for this stop..."
-                                  onChange={(event) =>
-                                    updateLocationDraft(
-                                      name,
-                                      "custom_notes",
-                                      event.target.value
-                                    )
-                                  }
-                                  onBlur={(event) =>
-                                    void saveLocationField(
-                                      name,
-                                      "custom_notes",
-                                      event.currentTarget.value
-                                    )
-                                  }
-                                  rows={1}
-                                  className="w-full h-10 bg-slate-900/80 border border-slate-700/70 rounded-xl px-3 py-2 text-xs text-stone-200 focus:outline-none focus:border-amber-400 transition-colors placeholder:text-stone-500 resize-none flex items-center"
-                                />
-                              </label>
-                            </div>
-
-                            <div
-                              className="print-hidden flex shrink-0 items-center gap-2"
-                              onPointerDown={(event) => event.stopPropagation()}
-                            >
-                              <button
-                                type="button"
-                                disabled={removingKey === removeKey}
-                                onClick={() =>
-                                  void removeCollectionItem(
-                                    "location_name",
-                                    name
-                                  )
-                                }
-                                className="rounded-full border border-rose-400/30 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-rose-300 transition-colors hover:bg-rose-400/10 disabled:cursor-wait disabled:opacity-50"
-                              >
-                                {removingKey === removeKey
-                                  ? "Removing..."
-                                  : "Remove"}
-                              </button>
-                            </div>
-                          </div>
-                          {rowIsSaving ? (
-                            <p className="mt-2 text-right text-[9px] uppercase tracking-[0.18em] text-amber-300/70">
-                              Saving...
-                            </p>
-                          ) : null}
-                        </Reorder.Item>
-                      );
-                    })}
+                    {savedLocationRows.map((row, index) => (
+                      <ItineraryRow
+                        key={row.location_name}
+                        row={row}
+                        index={index}
+                        details={locationDetails.get(row.location_name)}
+                        removingKey={removingKey}
+                        itinerarySavingKey={itinerarySavingKey}
+                        isTouch={isTouch}
+                        onRemove={(name) =>
+                          void removeCollectionItem("location_name", name)
+                        }
+                        onUpdateDraft={updateLocationDraft}
+                        onSaveField={(name, field, value) =>
+                          void saveLocationField(name, field, value)
+                        }
+                        onPersistOrder={persistItineraryOrder}
+                      />
+                    ))}
                   </Reorder.Group>
                 </div>
               ) : (
@@ -1113,5 +1031,215 @@ function EmptyCollection({
         {action}
       </Link>
     </section>
+  );
+}
+
+function ItineraryRow({
+  row,
+  index,
+  details,
+  removingKey,
+  itinerarySavingKey,
+  isTouch,
+  onRemove,
+  onUpdateDraft,
+  onSaveField,
+  onPersistOrder,
+}: {
+  row: ItineraryItem;
+  index: number;
+  details: KuantanLocation | undefined;
+  removingKey: string | null;
+  itinerarySavingKey: string | null;
+  isTouch: boolean;
+  onRemove: (name: string) => void;
+  onUpdateDraft: (
+    name: string,
+    field: "custom_time" | "custom_notes",
+    value: string
+  ) => void;
+  onSaveField: (
+    name: string,
+    field: "custom_time" | "custom_notes",
+    value: string
+  ) => void;
+  onPersistOrder: () => void;
+}) {
+  const controls = useDragControls();
+  const longPressTimer = useRef<number | null>(null);
+  const startPoint = useRef<{ x: number; y: number } | null>(null);
+  const didDragRef = useRef(false);
+  const [isArmingHold, setIsArmingHold] = useState(false);
+
+  const name = row.location_name;
+  const removeKey = `location_name:${name}`;
+  const rowIsSaving =
+    itinerarySavingKey === "order:all" ||
+    Boolean(itinerarySavingKey && itinerarySavingKey.endsWith(name));
+
+  const clearLongPress = useCallback(() => {
+    if (longPressTimer.current !== null) {
+      window.clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+    setIsArmingHold(false);
+    startPoint.current = null;
+  }, []);
+
+  const handleCardPointerDown = (event: ReactPointerEvent<HTMLElement>) => {
+    if (event.pointerType !== "touch") return;
+    startPoint.current = { x: event.clientX, y: event.clientY };
+    setIsArmingHold(true);
+    longPressTimer.current = window.setTimeout(() => {
+      longPressTimer.current = null;
+      setIsArmingHold(false);
+      if (
+        typeof navigator !== "undefined" &&
+        typeof navigator.vibrate === "function"
+      ) {
+        try {
+          navigator.vibrate(15);
+        } catch {
+          /* haptics unsupported */
+        }
+      }
+      controls.start(event.nativeEvent);
+    }, 450);
+  };
+
+  const handleCardPointerMove = (event: ReactPointerEvent<HTMLElement>) => {
+    if (longPressTimer.current === null || !startPoint.current) return;
+    const dx = event.clientX - startPoint.current.x;
+    const dy = event.clientY - startPoint.current.y;
+    if (Math.hypot(dx, dy) > 10) {
+      clearLongPress();
+    }
+  };
+
+  const touchHandlers = isTouch
+    ? {
+        onPointerDown: handleCardPointerDown,
+        onPointerMove: handleCardPointerMove,
+        onPointerUp: clearLongPress,
+        onPointerCancel: clearLongPress,
+      }
+    : {};
+
+  const dragConfig = isTouch
+    ? { dragListener: false as const, dragControls: controls }
+    : {};
+
+  return (
+    <Reorder.Item
+      as="article"
+      key={name}
+      value={row}
+      onDragStart={() => {
+        didDragRef.current = true;
+      }}
+      onDragEnd={() => {
+        const didDrag = didDragRef.current;
+        didDragRef.current = false;
+        clearLongPress();
+        if (didDrag) void onPersistOrder();
+      }}
+      whileDrag={{
+        scale: 1.015,
+        boxShadow: "0 24px 60px rgba(0,0,0,0.38)",
+      }}
+      className={`rounded-2xl border bg-slate-900/70 p-5 shadow-lg transition-shadow ${
+        isArmingHold
+          ? "border-amber-400/70 ring-2 ring-amber-400/40"
+          : "border-slate-700/70"
+      }`}
+      {...dragConfig}
+      {...touchHandlers}
+    >
+      <div className="flex flex-col gap-4 md:flex-row md:items-center">
+        <span
+          aria-hidden
+          className={`print-hidden shrink-0 select-none font-mono text-lg tracking-[-0.18em] text-stone-500 transition-colors active:cursor-grabbing ${
+            isTouch ? "cursor-grab" : "cursor-grab hover:text-amber-400"
+          }`}
+        >
+          :::
+        </span>
+
+        <div className="flex items-center gap-3 md:w-56 md:shrink-0">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-amber-400 text-xs font-bold text-[#0B192C]">
+            {String(index + 1).padStart(2, "0")}
+          </span>
+          <div className="min-w-0 flex-1">
+            <h3 className="truncate font-display text-xl font-semibold text-stone-100">
+              {name}
+            </h3>
+            <p className="mt-1 font-mono text-[10px] tracking-wide text-stone-500">
+              {details
+                ? `${details.latitude.toFixed(6)}, ${details.longitude.toFixed(6)}`
+                : "Coordinates unavailable"}
+            </p>
+          </div>
+        </div>
+
+        <div
+          className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-3 items-center mx-2 sm:mx-4"
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          <label className="block sm:col-span-1">
+            <span className="mb-1.5 block text-[9px] font-semibold uppercase tracking-[0.2em] text-stone-500">
+              Time
+            </span>
+            <input
+              type="text"
+              value={row.custom_time ?? "Flexible"}
+              placeholder="09:00 AM"
+              onChange={(event) =>
+                onUpdateDraft(name, "custom_time", event.target.value)
+              }
+              onBlur={(event) =>
+                onSaveField(name, "custom_time", event.currentTarget.value)
+              }
+              className="w-full h-10 bg-slate-900/80 border border-slate-700/70 rounded-xl px-3 text-xs text-stone-200 focus:outline-none focus:border-amber-400 transition-colors flex items-center"
+            />
+          </label>
+          <label className="block sm:col-span-2">
+            <span className="mb-1.5 block text-[9px] font-semibold uppercase tracking-[0.2em] text-stone-500">
+              Notes
+            </span>
+            <textarea
+              value={row.custom_notes ?? ""}
+              placeholder="Add a note for this stop..."
+              onChange={(event) =>
+                onUpdateDraft(name, "custom_notes", event.target.value)
+              }
+              onBlur={(event) =>
+                onSaveField(name, "custom_notes", event.currentTarget.value)
+              }
+              rows={1}
+              className="w-full h-10 bg-slate-900/80 border border-slate-700/70 rounded-xl px-3 py-2 text-xs text-stone-200 focus:outline-none focus:border-amber-400 transition-colors placeholder:text-stone-500 resize-none flex items-center"
+            />
+          </label>
+        </div>
+
+        <div
+          className="print-hidden flex shrink-0 items-center gap-2"
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          <button
+            type="button"
+            disabled={removingKey === removeKey}
+            onClick={() => onRemove(name)}
+            className="rounded-full border border-rose-400/30 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-rose-300 transition-colors hover:bg-rose-400/10 disabled:cursor-wait disabled:opacity-50"
+          >
+            {removingKey === removeKey ? "Removing..." : "Remove"}
+          </button>
+        </div>
+      </div>
+      {rowIsSaving ? (
+        <p className="mt-2 text-right text-[9px] uppercase tracking-[0.18em] text-amber-300/70">
+          Saving...
+        </p>
+      ) : null}
+    </Reorder.Item>
   );
 }
