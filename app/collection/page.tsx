@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Fragment,
   useCallback,
   useEffect,
   useMemo,
@@ -17,9 +18,16 @@ import Footer from "@/components/Footer";
 import LikeButton, {
   fetchAuthedLikedSet,
 } from "@/components/LikeButton";
-import { KUANTAN_LOCATIONS, type KuantanLocation } from "@/lib/locations";
+import {
+  formatTravelDuration,
+  getTravelEstimate,
+  KUANTAN_LOCATIONS,
+  optimizeRouteOrder,
+  type KuantanLocation,
+} from "@/lib/locations";
 import { supabaseClient } from "@/lib/supabase/client";
 import type { Photo } from "@/types/photo";
+import { useLanguage } from "@/lib/i18n";
 
 type CollectionTab = "frames" | "locations";
 
@@ -43,6 +51,7 @@ function photographerHandle(name: string): string {
 }
 
 export default function CollectionPage() {
+  const { copy } = useLanguage();
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [collectionLoading, setCollectionLoading] = useState(false);
@@ -63,6 +72,9 @@ export default function CollectionPage() {
   );
   const itineraryOrderRef = useRef<ItineraryItem[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [optimizationNotice, setOptimizationNotice] = useState<string | null>(
+    null
+  );
   const [isTouch, setIsTouch] = useState(false);
   const selectedPhoto =
     savedPhotos.find((photo) => photo.id === selectedPhotoId) ?? null;
@@ -220,6 +232,35 @@ export default function CollectionPage() {
     []
   );
 
+  const travelEstimates = useMemo(
+    () =>
+      savedLocationRows.slice(0, -1).map((row, index) => ({
+        from: row.location_name,
+        to: savedLocationRows[index + 1].location_name,
+        estimate: getTravelEstimate(
+          row.location_name,
+          savedLocationRows[index + 1].location_name
+        ),
+      })),
+    [savedLocationRows]
+  );
+
+  const routeSummary = useMemo(
+    () =>
+      travelEstimates.reduce(
+        (summary, segment) => {
+          if (!segment.estimate) return summary;
+          return {
+            durationMins: summary.durationMins + segment.estimate.durationMins,
+            distanceKm:
+              summary.distanceKm + Number.parseFloat(segment.estimate.distanceKm),
+          };
+        },
+        { durationMins: 0, distanceKm: 0 }
+      ),
+    [travelEstimates]
+  );
+
   const googleMapsRouteUrl = useMemo(() => {
     const coordinates = savedLocationRows
       .map((row) => locationDetails.get(row.location_name))
@@ -245,6 +286,37 @@ export default function CollectionPage() {
       origin
     )}&destination=${encodeURIComponent(destination)}${waypointQuery}`;
   }, [locationDetails, savedLocationRows]);
+
+  const whatsappShareUrl = useMemo(() => {
+    const lines = [copy.collection.title, ""];
+
+    savedLocationRows.forEach((row, index) => {
+      lines.push(
+        `${index + 1}. ${row.location_name}`,
+        `   ${copy.collection.time}: ${
+          row.custom_time?.toLowerCase() === "flexible"
+            ? copy.collection.flexible
+            : row.custom_time || copy.collection.flexible
+        }`
+      );
+      if (row.custom_notes?.trim()) {
+        lines.push(`   ${copy.collection.notes}: ${row.custom_notes.trim()}`);
+      }
+      const segment = travelEstimates[index];
+      if (segment?.estimate) {
+        lines.push(
+          `   🚗 ${segment.estimate.formatted} from ${segment.from}`
+        );
+      }
+      lines.push("");
+    });
+
+    if (googleMapsRouteUrl) {
+      lines.push(`${copy.collection.mapsRoute}: ${googleMapsRouteUrl}`);
+    }
+
+    return `https://wa.me/?text=${encodeURIComponent(lines.join("\n"))}`;
+  }, [copy, googleMapsRouteUrl, savedLocationRows, travelEstimates]);
 
   const removeCollectionItem = async (
     column: "photo_id" | "location_name",
@@ -426,6 +498,14 @@ export default function CollectionPage() {
     void persistItineraryOrder();
   };
 
+  const optimizeItinerary = async () => {
+    if (!user || savedLocationRows.length < 3 || itinerarySavingKey) return;
+    const optimized = optimizeRouteOrder(savedLocationRows);
+    handleReorder(optimized);
+    setOptimizationNotice(copy.collection.optimizedNotice);
+    await persistItineraryOrder();
+  };
+
   return (
     <div className="collection-page flex min-h-screen w-full flex-col bg-[#0B192C] text-stone-100">
       <Navbar />
@@ -433,14 +513,13 @@ export default function CollectionPage() {
         <div className="mx-auto w-full max-w-[1600px]">
           <header className="mx-auto mb-10 max-w-3xl text-center">
             <p className="text-amber-400/90 text-xs tracking-[0.25em] font-mono uppercase font-semibold mb-2">
-              Personal Field Notes
+               {copy.collection.eyebrow}
             </p>
             <h1 className="font-serif text-4xl sm:text-6xl tracking-tight text-stone-100 mb-3">
-              My Kuantan Trip
+               {copy.collection.title}
             </h1>
             <p className="text-stone-400 text-sm sm:text-base max-w-xl mx-auto font-sans">
-              A private collection of the frames and places shaping your next
-              journey along Kuantan&apos;s coast.
+               {copy.collection.description}
             </p>
           </header>
 
@@ -452,17 +531,16 @@ export default function CollectionPage() {
                 ♡
               </span>
               <h2 className="mt-6 font-display text-3xl font-bold text-stone-100">
-                Your Kuantan Journey Awaits
+                 {copy.collection.journeyAwaits}
               </h2>
               <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-stone-400">
-                Sign in to curate your personal itinerary, save favorite gallery
-                frames, and plan your coastal escape.
+                 {copy.collection.signInDescription}
               </p>
               <Link
                 href="/submit?redirectTo=%2Fcollection"
                 className="mt-8 inline-flex items-center justify-center rounded-full bg-amber-400 px-7 py-3 text-xs font-bold uppercase tracking-[0.2em] text-[#0B192C] transition-colors hover:bg-amber-300"
               >
-                Sign In / Sign Up
+                 {copy.collection.signInUp}
               </Link>
             </section>
           ) : collectionLoading ? (
@@ -473,10 +551,10 @@ export default function CollectionPage() {
                 <div className="inline-flex rounded-full border border-slate-700/80 bg-slate-900/80 p-1 shadow-xl">
                   {(
                     [
-                      ["frames", `Saved Frames (${savedPhotos.length})`],
+                       ["frames", copy.collection.savedFrames(savedPhotos.length)],
                       [
                         "locations",
-                        `My Itinerary (${savedLocationRows.length})`,
+                         copy.collection.itinerary(savedLocationRows.length),
                       ],
                     ] as const
                   ).map(([id, label]) => (
@@ -559,7 +637,7 @@ export default function CollectionPage() {
                               }}
                               className="mt-4 inline-flex items-center gap-2 rounded-full border border-rose-400/30 bg-rose-400/5 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-rose-300 transition-colors hover:bg-rose-400/15 disabled:cursor-wait disabled:opacity-50"
                             >
-                              {removingKey === key ? "Removing..." : "Remove"}
+                               {removingKey === key ? "Removing..." : copy.collection.remove}
                             </button>
                           </div>
                         </article>
@@ -568,10 +646,10 @@ export default function CollectionPage() {
                   </div>
                 ) : (
                   <EmptyCollection
-                    title="No saved frames yet"
-                    body="Explore The Archive and bookmark the photographs you want to remember."
-                    href="/gallery"
-                    action="Browse Gallery"
+                     title={copy.collection.noSavedFrames}
+                     body={copy.collection.savedFramesDescription}
+                     href="/gallery"
+                     action={copy.collection.browseGallery}
                   />
                 )
               ) : savedLocationRows.length > 0 ? (
@@ -579,20 +657,65 @@ export default function CollectionPage() {
                   <div className="print-hidden mb-6 flex flex-col gap-4 rounded-2xl border border-slate-700/70 bg-slate-900/70 p-5 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <h2 className="font-display text-2xl font-bold text-stone-100">
-                        My Itinerary
+                         {copy.collection.itineraryTitle}
                       </h2>
                       <p className="mt-1 text-xs text-stone-400">
-                        Reorder stops, set your timing, and leave private field
-                        notes.
+                         {copy.collection.itineraryDescription}
                       </p>
                       {isTouch ? (
                         <p className="mt-2 inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-300/80">
                           <span aria-hidden>↕</span>
-                          Use the arrow buttons to reorder stops
+                           {copy.collection.reorderHint}
+                        </p>
+                      ) : null}
+                      <div className="mt-4 grid max-w-xl grid-cols-2 gap-2 sm:grid-cols-3">
+                        <div className="col-span-2 rounded-xl border border-slate-700/60 bg-slate-800/45 px-2.5 py-2 text-center sm:col-span-1">
+                          <span className="block text-[9px] uppercase tracking-[0.16em] text-stone-500">
+                            {copy.collection.routeSummary}
+                          </span>
+                          <span className="mt-1 block font-mono text-[11px] leading-tight text-amber-300">
+                            {copy.collection.totalStops(savedLocationRows.length)}
+                          </span>
+                        </div>
+                        <div className="min-w-0 rounded-xl border border-slate-700/60 bg-slate-800/45 px-2.5 py-2 text-center">
+                          <span className="block text-[9px] uppercase tracking-[0.16em] text-stone-500">
+                            {copy.collection.drive}
+                          </span>
+                          <span className="mt-1 block break-words font-mono text-[11px] leading-tight text-amber-300">
+                            {copy.collection.totalDrive(
+                              formatTravelDuration(routeSummary.durationMins)
+                            )}
+                          </span>
+                        </div>
+                        <div className="min-w-0 rounded-xl border border-slate-700/60 bg-slate-800/45 px-2.5 py-2 text-center">
+                          <span className="block text-[9px] uppercase tracking-[0.16em] text-stone-500">
+                            {copy.collection.distance}
+                          </span>
+                          <span className="mt-1 block break-words font-mono text-[11px] leading-tight text-amber-300">
+                            {copy.collection.totalDistance(
+                              routeSummary.distanceKm.toFixed(1)
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                      {optimizationNotice ? (
+                        <p className="mt-3 inline-flex items-center rounded-full border border-emerald-400/25 bg-emerald-400/10 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-300">
+                          {optimizationNotice}
                         </p>
                       ) : null}
                     </div>
-                    <div className="grid w-full grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
+                    <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
+                      {savedLocationRows.length >= 3 ? (
+                        <button
+                          type="button"
+                          onClick={() => void optimizeItinerary()}
+                          disabled={itinerarySavingKey !== null}
+                          className="inline-flex items-center justify-center gap-1.5 rounded-full border border-slate-700/60 bg-slate-800/80 px-4 py-2 text-xs font-mono text-amber-400 transition-all hover:bg-slate-700/80 disabled:cursor-wait disabled:opacity-50"
+                        >
+                          <span aria-hidden>⚡</span>
+                          {copy.collection.optimizeRoute}
+                        </button>
+                      ) : null}
                       {googleMapsRouteUrl ? (
                         <a
                           href={googleMapsRouteUrl}
@@ -600,15 +723,31 @@ export default function CollectionPage() {
                           rel="noopener noreferrer"
                           className="inline-flex items-center justify-center rounded-full bg-amber-500 px-5 py-2.5 text-center text-[11px] font-bold uppercase tracking-[0.12em] text-stone-950 transition-colors hover:bg-amber-400"
                         >
-                          Open Google Maps Route ↗
+                          {copy.collection.mapsRoute}
                         </a>
                       ) : null}
+                      <a
+                        href={whatsappShareUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center justify-center gap-2 rounded-full bg-[#25D366] px-5 py-2.5 text-center text-[11px] font-bold uppercase tracking-[0.12em] text-[#062b16] transition-colors hover:bg-[#42e47c]"
+                      >
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="currentColor"
+                          className="h-4 w-4"
+                          aria-hidden
+                        >
+                          <path d="M12 2a9.8 9.8 0 0 0-8.48 14.73L2 22l5.43-1.43A9.8 9.8 0 1 0 12 2Zm0 17.9a8.08 8.08 0 0 1-4.12-1.13l-.3-.18-3.22.85.86-3.14-.2-.32A8.1 8.1 0 1 1 12 19.9Zm4.44-6.07c-.24-.12-1.42-.7-1.64-.78-.22-.08-.38-.12-.54.12-.16.24-.62.78-.76.94-.14.16-.28.18-.52.06-.24-.12-1.02-.38-1.94-1.2-.72-.64-1.2-1.43-1.34-1.67-.14-.24-.01-.37.1-.49.1-.1.24-.28.36-.42.12-.14.16-.24.24-.4.08-.16.04-.3-.02-.42-.06-.12-.54-1.3-.74-1.78-.2-.47-.4-.4-.54-.41h-.46c-.16 0-.42.06-.64.3-.22.24-.84.82-.84 2s.86 2.32.98 2.48c.12.16 1.7 2.6 4.12 3.64.58.25 1.03.4 1.38.52.58.18 1.1.16 1.52.1.46-.07 1.42-.58 1.62-1.14.2-.56.2-1.04.14-1.14-.06-.1-.22-.16-.46-.28Z" />
+                        </svg>
+                         {copy.collection.shareWhatsapp}
+                      </a>
                       <button
                         type="button"
                         onClick={() => window.print()}
                         className="inline-flex items-center justify-center rounded-full border border-slate-600 bg-slate-800 px-5 py-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-stone-200 transition-colors hover:border-stone-400 hover:text-white"
                       >
-                        Print / Save as PDF 🖨️
+                         {copy.collection.printPdf}
                       </button>
                     </div>
                   </div>
@@ -620,35 +759,49 @@ export default function CollectionPage() {
                     onReorder={handleReorder}
                     className="space-y-4"
                   >
-                    {savedLocationRows.map((row, index) => (
-                      <ItineraryRow
-                        key={row.location_name}
-                        row={row}
-                        index={index}
-                        details={locationDetails.get(row.location_name)}
-                        removingKey={removingKey}
-                        itinerarySavingKey={itinerarySavingKey}
-                        isTouch={isTouch}
-                        onRemove={(name) =>
-                          void removeCollectionItem("location_name", name)
-                        }
-                        onUpdateDraft={updateLocationDraft}
-                        onSaveField={(name, field, value) =>
-                          void saveLocationField(name, field, value)
-                        }
-                        onPersistOrder={persistItineraryOrder}
-                        onMove={moveLocationStop}
-                        total={savedLocationRows.length}
-                      />
-                    ))}
+                    {savedLocationRows.map((row, index) => {
+                      const segment = travelEstimates[index];
+                      return (
+                        <Fragment key={row.location_name}>
+                          <ItineraryRow
+                            row={row}
+                            index={index}
+                            details={locationDetails.get(row.location_name)}
+                            removingKey={removingKey}
+                            itinerarySavingKey={itinerarySavingKey}
+                            isTouch={isTouch}
+                            onRemove={(name) =>
+                              void removeCollectionItem("location_name", name)
+                            }
+                            onUpdateDraft={updateLocationDraft}
+                            onSaveField={(name, field, value) =>
+                              void saveLocationField(name, field, value)
+                            }
+                            onPersistOrder={persistItineraryOrder}
+                            onMove={moveLocationStop}
+                            total={savedLocationRows.length}
+                          />
+                          {segment?.estimate ? (
+                            <div className="my-2 flex items-center justify-center py-1">
+                              <div className="inline-flex items-center gap-2 rounded-full border border-slate-700/50 bg-slate-800/60 px-3 py-1 font-mono text-[11px] text-amber-400/90 shadow-sm">
+                                <span aria-hidden>🚗</span>
+                                <span>
+                                  {segment.estimate.formatted} from {segment.from}
+                                </span>
+                              </div>
+                            </div>
+                          ) : null}
+                        </Fragment>
+                      );
+                    })}
                   </Reorder.Group>
                 </div>
               ) : (
                 <EmptyCollection
-                  title="No saved locations yet"
-                  body="Open the Visit trails and bookmark the stops for your personal route."
-                  href="/visit"
-                  action="Explore Visit Trails"
+                   title={copy.collection.noSavedLocations}
+                   body={copy.collection.savedLocationsDescription}
+                   href="/visit"
+                   action={copy.collection.exploreTrails}
                 />
               )}
             </>
@@ -802,37 +955,48 @@ export default function CollectionPage() {
 
       <section className="print-itinerary" aria-label="Printable itinerary">
         <header className="print-document-header">
-          <p>MYKUANTAN · PERSONAL FIELD NOTES</p>
-          <h1>MY KUANTAN TRIP ITINERARY</h1>
+          <p>MYKUANTAN · {copy.collection.eyebrow.toUpperCase()}</p>
+          <h1>{copy.collection.title}</h1>
           <span>
-            {savedLocationRows.length} planned stop
-            {savedLocationRows.length === 1 ? "" : "s"}
+            {copy.collection.totalStops(savedLocationRows.length)} · {copy.collection.totalDrive(formatTravelDuration(routeSummary.durationMins))} · {copy.collection.totalDistance(routeSummary.distanceKm.toFixed(1))}
           </span>
         </header>
         {savedLocationRows.length > 0 ? (
           <ol className="print-stop-list">
             {savedLocationRows.map((row, index) => {
               const details = locationDetails.get(row.location_name);
+              const segment = travelEstimates[index];
+              const time =
+                row.custom_time?.toLowerCase() === "flexible"
+                  ? copy.collection.flexible
+                  : row.custom_time || copy.collection.flexible;
               return (
-                <li key={row.location_name} className="print-stop">
-                  <span className="print-stop-number">
-                    {String(index + 1).padStart(2, "0")}
-                  </span>
-                  <div>
-                    <div className="print-stop-heading">
-                      <h2>{row.location_name}</h2>
-                      <time>{row.custom_time || "Flexible"}</time>
+                <Fragment key={row.location_name}>
+                  <li className="print-stop">
+                    <span className="print-stop-number">
+                      {String(index + 1).padStart(2, "0")}
+                    </span>
+                    <div>
+                      <div className="print-stop-heading">
+                        <h2>{row.location_name}</h2>
+                        <time>{time}</time>
+                      </div>
+                      {details ? (
+                        <p className="print-coordinates">
+                          {details.latitude.toFixed(6)}, {details.longitude.toFixed(6)}
+                        </p>
+                      ) : null}
+                      {row.custom_notes ? (
+                        <p className="print-notes">{row.custom_notes}</p>
+                      ) : null}
                     </div>
-                    {details ? (
-                      <p className="print-coordinates">
-                        {details.latitude.toFixed(6)}, {details.longitude.toFixed(6)}
-                      </p>
-                    ) : null}
-                    {row.custom_notes ? (
-                      <p className="print-notes">{row.custom_notes}</p>
-                    ) : null}
-                  </div>
-                </li>
+                  </li>
+                  {segment?.estimate ? (
+                    <li className="print-travel">
+                      🚗 {segment.estimate.formatted} from {segment.from}
+                    </li>
+                  ) : null}
+                </Fragment>
               );
             })}
           </ol>
@@ -926,6 +1090,14 @@ export default function CollectionPage() {
             padding: 8px 0;
             border-bottom: 1px solid #d7dce2;
             break-inside: avoid;
+          }
+
+          .print-travel {
+            margin: -2px 0 0 38px;
+            color: #8a6418;
+            font-family: monospace;
+            font-size: 8px;
+            list-style: none;
           }
 
           .print-stop-number {
@@ -1060,8 +1232,13 @@ function TimePicker({
   onOpenChange: (open: boolean) => void;
   onSelect: (value: string) => void;
 }) {
+  const { copy } = useLanguage();
   const [meridiem, setMeridiem] = useState<"AM" | "PM">("AM");
-  const display = value && value.trim().length > 0 ? value : "Flexible";
+  const isFlexible =
+    !value ||
+    value.trim().toLowerCase() === "flexible" ||
+    value.trim().toLowerCase() === copy.collection.flexible.toLowerCase();
+  const display = isFlexible ? copy.collection.flexible : value;
 
   const toggle = () => {
     if (!open) {
@@ -1119,12 +1296,12 @@ function TimePicker({
                 type="button"
                 onClick={() => choose("Flexible")}
                 className={`rounded-lg px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.14em] transition-colors ${
-                  display === "Flexible"
+                  display === copy.collection.flexible
                     ? "bg-amber-400 text-[#0B192C]"
                     : "text-stone-400 hover:bg-slate-800 hover:text-stone-200"
                 }`}
               >
-                Flexible
+                {copy.collection.flexible}
               </button>
               <div className="flex rounded-lg bg-slate-800 p-0.5">
                 {(["AM", "PM"] as const).map((half) => (
@@ -1215,6 +1392,7 @@ function ItineraryRow({
   onMove: (name: string, direction: -1 | 1) => void;
   total: number;
 }) {
+  const { copy } = useLanguage();
   const controls = useDragControls();
   const longPressTimer = useRef<number | null>(null);
   const startPoint = useRef<{ x: number; y: number } | null>(null);
@@ -1425,7 +1603,7 @@ function ItineraryRow({
                 <path d="M6 6l12 12M18 6 6 18" strokeLinecap="round" />
               </svg>
               <span className="hidden sm:inline">
-                {removingKey === removeKey ? "Removing..." : "Remove"}
+                {removingKey === removeKey ? "Removing..." : copy.collection.remove}
               </span>
             </button>
           </div>
@@ -1437,7 +1615,7 @@ function ItineraryRow({
         >
           <div className="block">
             <span className="mb-1 block text-[9px] font-semibold uppercase tracking-[0.2em] text-stone-500">
-              Time
+              {copy.collection.time}
             </span>
             <TimePicker
               value={row.custom_time}
@@ -1451,7 +1629,7 @@ function ItineraryRow({
           </div>
           <label className="block sm:col-span-2">
             <span className="mb-1 block text-[9px] font-semibold uppercase tracking-[0.2em] text-stone-500">
-              Notes
+              {copy.collection.notes}
             </span>
             <textarea
               value={row.custom_notes ?? ""}

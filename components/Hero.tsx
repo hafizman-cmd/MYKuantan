@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import type { Photo } from "@/types/photo";
+import { useLanguage } from "@/lib/i18n";
 
 interface HeroProps {
   latestPhotos: Photo[];
@@ -62,6 +63,7 @@ function computeCountdown(sunset: number): string {
 }
 
 export default function Hero({ latestPhotos }: HeroProps) {
+  const { copy } = useLanguage();
   const slides = latestPhotos.slice(0, 5);
   const [active, setActive] = useState(0);
   const [coastalData, setCoastalData] = useState<TrackerData | null>(null);
@@ -132,43 +134,47 @@ export default function Hero({ latestPhotos }: HeroProps) {
             <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-1 mb-6 text-[10px] uppercase tracking-[0.25em] animate-fade-in">
               {/* Node 1: Dynamic Tide Metrics */}
               <div className="flex items-center gap-2">
-                <span className="font-bold text-[#0F3460]">TIDE //</span>
-                <span className="text-stone-600 font-medium">
-                  {coastalData.tideStatus} ({coastalData.tideHeight}m)
+                  <span className="font-bold text-[#0F3460]">{copy.hero.tide}</span>
+                  <span className="text-stone-600 font-medium">
+                  {copy.hero.tideStatuses[coastalData.tideStatus] ??
+                    coastalData.tideStatus} ({coastalData.tideHeight}m)
                 </span>
               </div>
               <span className="hidden sm:inline font-light text-[#0F3460]/20">|</span>
               {/* Node 2: Wind Metrics */}
               <div className="flex items-center gap-2">
-                <span className="font-bold text-[#0F3460]">WIND //</span>
+                  <span className="font-bold text-[#0F3460]">{copy.hero.wind}</span>
                 <span className="text-stone-600 font-medium">
                   {coastalData.windSpeed} KTS {coastalData.windDirectionText}
                 </span>
                 {coastalData.isOnshore && (
                   <span className="text-[#0F3460] font-bold tracking-[0.2em] text-[9px] bg-[#0F3460]/5 px-2 py-0.5 rounded-full">
-                    Onshore
+                    {copy.hero.onshore}
                   </span>
                 )}
               </div>
               <span className="hidden sm:inline font-light text-[#0F3460]/20">|</span>
               {/* Node 3: Solar Tracker */}
               <div className="flex items-center gap-2">
-                <span className="font-bold text-[#0F3460]">LIGHT //</span>
+                  <span className="font-bold text-[#0F3460]">{copy.hero.light}</span>
                 <span className="text-stone-600 font-medium">
                   {coastalData.countdownText}
                 </span>
               </div>
             </div>
           )}
+          <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.28em] text-[#0F3460]">
+            {copy.hero.eyebrow}
+          </p>
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-serif tracking-tight text-stone-900 leading-tight mb-3">
-            Where the Sea
+            {copy.hero.titleLineOne}
             <br />
-            <span className="italic text-[#0F3460] font-semibold">Remembers.</span>
+            <span className="italic text-[#0F3460] font-semibold">
+              {copy.hero.titleLineTwo}
+            </span>
           </h1>
           <p className="text-xs sm:text-sm text-stone-600 max-w-lg mx-auto mb-6 leading-relaxed">
-            An editorial lookbook tracing light, tide, and tradition across
-            Kuantan — the quiet capital of Pahang, where the South China Sea
-            outlines every silhouette.
+            {copy.hero.description}
           </p>
         </div>
 
@@ -181,7 +187,7 @@ export default function Hero({ latestPhotos }: HeroProps) {
                 key={photo.id}
                 type="button"
                 onClick={() => setActive(i)}
-                aria-label={`View ${photo.location}`}
+                aria-label={copy.hero.viewFrame(photo.location)}
                 data-cursor="VIEW FRAME"
                 className={`relative h-full overflow-hidden rounded-[1.5rem] md:rounded-[2rem] bg-[#0F3460] cursor-pointer transition-all duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-flex-grow ${
                   isActive ? "flex-[4]" : "flex-[0.7]"
@@ -265,7 +271,7 @@ export default function Hero({ latestPhotos }: HeroProps) {
             href="/gallery"
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-[#0a1726]/15 bg-white/40 hover:bg-white/80 backdrop-blur-sm shadow-sm hover:scale-105 text-xs tracking-[0.2em] text-[#0a1726]/80 hover:text-[#0a1726] font-medium transition-all duration-300 uppercase"
           >
-            Explore Full Gallery
+            {copy.hero.exploreGallery}
             <svg
               width="14"
               height="14"

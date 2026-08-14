@@ -43,8 +43,101 @@ export const KUANTAN_LOCATIONS: KuantanLocation[] = [
 
 export const KUANTAN_CENTER: [number, number] = [3.8078, 103.3262];
 
+export interface TravelEstimate {
+  distanceKm: string;
+  durationMins: number;
+  formatted: string;
+}
+
+export function formatTravelDuration(durationMins: number): string {
+  const hours = Math.floor(durationMins / 60);
+  const minutes = durationMins % 60;
+  const hourLabel = `${hours} hour${hours === 1 ? "" : "s"}`;
+  const minuteLabel = `${minutes} minute${minutes === 1 ? "" : "s"}`;
+
+  if (hours === 0) return minuteLabel;
+  if (minutes === 0) return hourLabel;
+  return `${hourLabel} and ${minuteLabel}`;
+}
+
+function haversineDistanceKm(
+  first: [number, number],
+  second: [number, number]
+): number {
+  const earthRadiusKm = 6371;
+  const toRadians = (degrees: number) => (degrees * Math.PI) / 180;
+  const latitudeDelta = toRadians(second[0] - first[0]);
+  const longitudeDelta = toRadians(second[1] - first[1]);
+  const firstLatitude = toRadians(first[0]);
+  const secondLatitude = toRadians(second[0]);
+  const haversine =
+    Math.sin(latitudeDelta / 2) ** 2 +
+    Math.cos(firstLatitude) *
+      Math.cos(secondLatitude) *
+      Math.sin(longitudeDelta / 2) ** 2;
+
+  return (
+    2 * earthRadiusKm * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine))
+  );
+}
+
+export function optimizeRouteOrder<T extends { location_name: string }>(
+  items: T[]
+): T[] {
+  if (items.length <= 2) return items;
+
+  const optimized = [items[0]];
+  const unvisited = items.slice(1);
+  let current = items[0];
+
+  while (unvisited.length > 0) {
+    const currentCoordinates = getCoordinatesByName(current.location_name);
+    let nearestIndex = 0;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+
+    if (currentCoordinates) {
+      unvisited.forEach((candidate, index) => {
+        const candidateCoordinates = getCoordinatesByName(candidate.location_name);
+        if (!candidateCoordinates) return;
+        const distance = haversineDistanceKm(currentCoordinates, candidateCoordinates);
+        if (distance < nearestDistance) {
+          nearestDistance = distance;
+          nearestIndex = index;
+        }
+      });
+    }
+
+    const [next] = unvisited.splice(nearestIndex, 1);
+    if (!next) break;
+    optimized.push(next);
+    current = next;
+  }
+
+  return optimized;
+}
+
 export function getCoordinatesByName(name: string): [number, number] | null {
   const match = KUANTAN_LOCATIONS.find((l) => l.name === name);
   if (!match) return null;
   return [match.latitude, match.longitude];
+}
+
+export function getTravelEstimate(
+  loc1Name: string,
+  loc2Name: string
+): TravelEstimate | null {
+  const first = getCoordinatesByName(loc1Name);
+  const second = getCoordinatesByName(loc2Name);
+  if (!first || !second) return null;
+
+  const directKm = haversineDistanceKm(first, second);
+  const estimatedRoadKm = directKm * 1.35;
+  const durationMins = Math.round((estimatedRoadKm / 45) * 60);
+  const distanceKm = estimatedRoadKm.toFixed(1);
+
+  return {
+    distanceKm,
+    durationMins,
+    formatted: `~${formatTravelDuration(durationMins)} drive (${distanceKm} km)`,
+  };
 }

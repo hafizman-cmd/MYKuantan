@@ -3,6 +3,7 @@ import { Playfair_Display, Inter } from "next/font/google";
 import "./globals.css";
 import SplashScreen from "@/components/SplashScreen";
 import CustomCursor from "@/components/CustomCursor";
+import { LanguageProvider } from "@/lib/i18n";
 
 const playfair = Playfair_Display({
   subsets: ["latin"],
@@ -52,7 +53,7 @@ export default function RootLayout({
       <body className="antialiased w-full min-h-screen bg-[#F5F0E8] text-stone-900 m-0 p-0">
         <SplashScreen />
         <CustomCursor />
-        {children}
+        <LanguageProvider>{children}</LanguageProvider>
       </body>
     </html>
   );

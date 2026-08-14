@@ -1,6 +1,10 @@
+"use client";
+
 import Link from "next/link";
+import { useLanguage } from "@/lib/i18n";
 
 export default function Footer() {
+  const { copy } = useLanguage();
   const year = new Date().getFullYear();
 
   return (
@@ -12,18 +16,17 @@ export default function Footer() {
               Kuantan
             </span>
             <p className="max-w-md text-xs text-stone-500 font-light leading-relaxed">
-              An editorial celebration of Kuantan, Pahang — light, tide, and
-              tradition, framed.
+              {copy.footer.description}
             </p>
           </div>
 
           <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
             {[
-              { label: "Lookbook", href: "/" },
-              { label: "Gallery", href: "/gallery" },
-              { label: "Stories", href: "/stories" },
-              { label: "Visit", href: "/visit" },
-              { label: "Submit", href: "/submit" },
+              { label: copy.nav.lookbook, href: "/" },
+              { label: copy.nav.gallery, href: "/gallery" },
+              { label: copy.nav.stories, href: "/stories" },
+              { label: copy.nav.visit, href: "/visit" },
+              { label: copy.nav.submit, href: "/submit" },
             ].map((l) => (
               <Link
                 key={l.href}
@@ -38,16 +41,16 @@ export default function Footer() {
           <div className="w-12 h-px bg-stone-700" />
 
           <div className="flex flex-col md:flex-row items-center justify-center gap-2 text-xs text-stone-500">
-            <span>© {year} MYKuantan. All rights reserved.</span>
+            <span>© {year} MYKuantan. {copy.footer.rights}</span>
             <span className="hidden md:inline text-stone-700">·</span>
-            <span>Crafted in Pahang, Malaysia.</span>
+            <span>{copy.footer.crafted}</span>
           </div>
         </div>
 
         <Link
           href="/admin"
-          aria-label="Editorial access"
-          title="Editorial access"
+          aria-label={copy.footer.editorialAccess}
+          title={copy.footer.editorialAccess}
           className="absolute bottom-2 right-2 w-4 h-4 opacity-0 cursor-default"
         >
           ·

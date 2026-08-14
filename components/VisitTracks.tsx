@@ -11,6 +11,7 @@ import {
   locationRouteMap,
   type RouteCategory,
 } from "@/lib/routes";
+import { useLanguage } from "@/lib/i18n";
 
 const VisitMiniMap = dynamic(() => import("./VisitMiniMap"), {
   ssr: false,
@@ -104,6 +105,7 @@ interface VisitTracksProps {
 }
 
 export default function VisitTracks({ photos }: VisitTracksProps) {
+  const { copy } = useLanguage();
   const [activeRouteFilter, setActiveRouteFilter] =
     useState<RouteCategory | null>(null);
   const {
@@ -148,11 +150,10 @@ export default function VisitTracks({ photos }: VisitTracksProps) {
       {/* Page header — breathing room below fixed Navbar */}
       <div className="w-full flex flex-col items-center justify-center text-center">
         <h2 className="text-3xl sm:text-4xl font-serif text-stone-100 tracking-tight mb-8">
-          Visit Kuantan
+          {copy.visit.title}
         </h2>
         <p className="text-xs sm:text-sm text-stone-300 max-w-md mx-auto text-center leading-relaxed mb-10 md:mb-12">
-          Three curated travel routes through Pahang&apos;s coast, peaks, and
-          heritage heart. Select a trail to filter the atlas below.
+          {copy.visit.description}
         </p>
       </div>
 
@@ -174,20 +175,22 @@ export default function VisitTracks({ photos }: VisitTracksProps) {
               >
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-amber-400 font-sans tracking-widest text-[11px] uppercase font-bold">
-                    {route.id}
+                    {copy.visit.categoryLabels[route.id] ?? route.id}
                   </span>
                 </div>
                 <h3 className="font-display text-white text-2xl md:text-3xl font-bold leading-tight mb-2">
-                  {route.title}
+                  {copy.visit.routes[route.id]?.title ?? route.title}
                 </h3>
                 <p className="text-stone-300 font-serif text-base leading-relaxed">
-                  {route.description}
+                  {copy.visit.routes[route.id]?.description ?? route.description}
                 </p>
                 <span
                   className={`mt-5 inline-flex items-center gap-2 text-[12px] uppercase tracking-[0.2em] font-medium transition-colors duration-300 ${isSelected ? "text-amber-400" : "text-stone-400"
                     }`}
                 >
-                  {isSelected ? "Filtering atlas" : "Select to filter"}
+                  {isSelected
+                    ? copy.visit.filteringAtlas
+                    : copy.visit.selectToFilter}
                   <svg
                     className="w-4 h-4"
                     viewBox="0 0 24 24"
@@ -238,7 +241,7 @@ export default function VisitTracks({ photos }: VisitTracksProps) {
                 onClick={() => setActiveRouteFilter(null)}
                 className="text-[12px] uppercase tracking-[0.2em] font-medium text-stone-400 hover:text-amber-400 transition-colors duration-300"
               >
-                Reset — show all trails
+                {copy.visit.reset}
               </button>
 
               {journeyUrl && (
@@ -248,7 +251,7 @@ export default function VisitTracks({ photos }: VisitTracksProps) {
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-500 text-stone-950 hover:bg-amber-400 hover:scale-105 transition-all duration-200 text-xs tracking-widest uppercase font-extrabold rounded-full whitespace-nowrap shadow-md shadow-amber-500/10"
                 >
-                  Start Journey ↗
+                  {copy.visit.startJourney} ↗
                 </a>
               )}
             </div>
@@ -293,8 +296,8 @@ export default function VisitTracks({ photos }: VisitTracksProps) {
                           aria-pressed={bookmarkedLocations.has(location)}
                           aria-label={
                             bookmarkedLocations.has(location)
-                              ? `Remove ${location} from My Kuantan Trip`
-                              : `Save ${location} to My Kuantan Trip`
+                               ? copy.visit.removeLocation
+                               : copy.visit.saveLocation
                           }
                           className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition-all disabled:cursor-wait disabled:opacity-60 ${
                             bookmarkedLocations.has(location)
@@ -330,8 +333,7 @@ export default function VisitTracks({ photos }: VisitTracksProps) {
             </ol>
           ) : (
             <p className="text-stone-400 font-serif text-sm leading-relaxed text-center py-6">
-              No pinned frames for this trail yet — be the first to
-              submit.
+              {copy.visit.noPinned}
             </p>
           )}
         </div>

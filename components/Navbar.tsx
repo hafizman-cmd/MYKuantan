@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { createPortal } from "react-dom";
 import { type Session } from "@supabase/supabase-js";
 import { supabaseClient } from "@/lib/supabase/client";
+import { useLanguage, type Language } from "@/lib/i18n";
 
 const SUPABASE_PROFILES_TABLE = "profiles";
 
@@ -14,17 +15,60 @@ interface ContributorProfile {
   display_name: string | null;
 }
 
+function LanguageToggle({
+  language,
+  setLanguage,
+  lightMode = false,
+  mobile = false,
+}: {
+  language: Language;
+  setLanguage: (language: Language) => void;
+  lightMode?: boolean;
+  mobile?: boolean;
+}) {
+  const inactiveClass = lightMode
+    ? "text-[#0a1726]/45 hover:text-[#0a1726]"
+    : "text-stone-400 hover:text-stone-200";
+
+  return (
+    <div
+      className={`inline-flex items-center rounded-full border border-white/15 bg-white/5 p-1 font-mono text-[10px] tracking-[0.14em] ${
+        mobile ? "self-start" : "shrink-0"
+      }`}
+      aria-label="Language"
+    >
+      {(["en", "ms"] as const).map((option) => {
+        const active = language === option;
+        return (
+          <button
+            key={option}
+            type="button"
+            onClick={() => setLanguage(option)}
+            aria-pressed={active}
+            className={`rounded-full px-2 py-1 font-bold uppercase transition-colors ${
+              active ? "bg-amber-400 text-[#0B192C]" : inactiveClass
+            }`}
+          >
+            {option === "ms" ? "BM" : "EN"}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 const NAV_LINKS = [
-  { label: "Lookbook", href: "/" },
-  { label: "Stories", href: "/stories" },
-  { label: "Gallery", href: "/gallery" },
-  { label: "Visit", href: "/visit" },
-  { label: "My Trip", href: "/collection" },
-];
+  { key: "lookbook", href: "/" },
+  { key: "stories", href: "/stories" },
+  { key: "gallery", href: "/gallery" },
+  { key: "visit", href: "/visit" },
+  { key: "myTrip", href: "/collection" },
+] as const;
 
 const LIGHT_PAGES = ["/", "/submit"];
 
 export default function Navbar() {
+  const { language, setLanguage, copy } = useLanguage();
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
@@ -152,7 +196,7 @@ export default function Navbar() {
           : "border-stone-100/80 text-stone-100 hover:bg-stone-100 hover:text-[#0B192C]"
       }`}
     >
-      Submit
+       {copy.nav.submit}
     </Link>
   );
 
@@ -166,9 +210,9 @@ export default function Navbar() {
           ? "!text-[#0a1726] hover:underline"
           : "text-stone-300 hover:text-red-300"
       }`}
-      aria-label="Log out"
+      aria-label={copy.nav.logOut}
     >
-      {loggingOut ? "…" : "Log Out"}
+      {loggingOut ? "…" : copy.nav.logOut}
     </button>
   );
 
@@ -189,19 +233,19 @@ export default function Navbar() {
         onClick={(event) => event.stopPropagation()}
       >
         <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-amber-300/80">
-          Account
+          {copy.nav.account}
         </p>
         <h2
           id="logout-dialog-title"
           className="mt-3 break-words font-display text-3xl font-semibold leading-tight text-white"
         >
-          Leave your session?
+          {copy.nav.leaveSession}
         </h2>
         <p
           id="logout-dialog-description"
           className="mt-3 text-sm leading-6 text-stone-300"
         >
-          You will need to sign in again to contribute to the lookbook.
+          {copy.nav.sessionDescription}
         </p>
         <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <button
@@ -210,7 +254,7 @@ export default function Navbar() {
             disabled={loggingOut}
             className="border border-white/40 bg-white/5 px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-white transition-colors hover:border-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Stay signed in
+            {copy.nav.staySignedIn}
           </button>
           <button
             type="button"
@@ -218,7 +262,7 @@ export default function Navbar() {
             disabled={loggingOut}
             className="border border-red-200 bg-red-300 px-5 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-[#0B192C] transition-colors hover:bg-red-200 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {loggingOut ? "Signing out..." : "Log out"}
+            {loggingOut ? copy.nav.signingOut : copy.nav.logOutConfirm}
           </button>
         </div>
       </div>
@@ -260,15 +304,20 @@ export default function Navbar() {
                       : "text-stone-100 hover:text-amber-300"
                   }`}
                 >
-                  {link.label}
+                  {copy.nav[link.key]}
                 </Link>
               </li>
             ))}
           </ul>
+          <LanguageToggle
+            language={language}
+            setLanguage={setLanguage}
+            lightMode={lightMode}
+          />
           {submitBtn}
           {isKnownContributor ? logOutBtn : null}
           <button
-            aria-label="Open menu"
+            aria-label={copy.nav.openMenu}
             aria-expanded={isOpen}
             onClick={() => setIsOpen(!isOpen)}
             className="md:hidden flex flex-col items-end gap-1.5 p-2"
@@ -301,17 +350,24 @@ export default function Navbar() {
                   onClick={() => setIsOpen(false)}
                   className="block w-full py-3 text-sm uppercase tracking-[0.18em] text-stone-100 hover:text-amber-300 transition-colors duration-300 font-medium"
                 >
-                  {link.label}
+                  {copy.nav[link.key]}
                 </Link>
-              </li>
-            ))}
-            <li className="mt-2">
+               </li>
+             ))}
+             <li className="mt-2 border-t border-white/10 pt-3">
+               <LanguageToggle
+                 language={language}
+                 setLanguage={setLanguage}
+                 mobile
+               />
+             </li>
+             <li className="mt-2">
               <Link
                 href="/submit"
                 onClick={() => setIsOpen(false)}
                 className="inline-flex w-full sm:w-auto items-center justify-center rounded-full border border-stone-100/80 bg-transparent px-6 py-2.5 text-[12px] uppercase tracking-[0.2em] text-stone-100 font-semibold hover:bg-stone-100 hover:text-[#0B192C] transition-all duration-300"
               >
-                Submit Frame
+                 {copy.nav.submitFrame}
               </Link>
             </li>
             {isKnownContributor && (
@@ -321,9 +377,9 @@ export default function Navbar() {
                   onClick={() => setIsLogoutModalOpen(true)}
                   disabled={loggingOut}
                   className="w-full sm:w-auto inline-flex items-center justify-center py-3 text-[11px] uppercase tracking-[0.18em] text-stone-300 hover:text-red-300 transition-colors duration-300 font-semibold disabled:cursor-not-allowed disabled:opacity-60"
-                  aria-label="Log out"
-                >
-                  {loggingOut ? "Signing out…" : "Log Out"}
+                   aria-label={copy.nav.logOut}
+                 >
+                   {loggingOut ? copy.nav.signingOut : copy.nav.logOut}
                 </button>
               </li>
             )}

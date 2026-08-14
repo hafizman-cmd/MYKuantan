@@ -1,35 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-
-interface ChronicleEra {
-  era: string;
-  title: string;
-  body: string;
-}
-
-const CHRONICLES: ChronicleEra[] = [
-  {
-    era: "1850s // ILHAM AWAL",
-    title: "Petempatan Awal",
-    body: "Petempatan awal Kuantan mula diasaskan sekitar tahun 1850-an oleh Haji Senik bersama pengikutnya. Kawasan penumpuan asal ini asalnya dikenali sebagai Kampung Teruntum, yang terletak berhampiran muara Teruntum River.",
-  },
-  {
-    era: "1851 // CATATAN MUNSHI",
-    title: "Pelayaran Abdullah",
-    body: "Nama Kuantan secara rasminya direkodkan dalam lembaran sejarah tamadun Melayu moden oleh tokoh sastera Abdullah Abdul Kadir Munshi dalam kisah pelayaran terkenal beliau ke Pantai Timur sekitar tahun 1851.",
-  },
-  {
-    era: "1955 // IBU NEGERI PAHANG",
-    title: "Pusat Pentadbiran",
-    body: "Titik perubahan geo-politik Kuantan berlaku secara gemilang pada 27 Ogos 1955 apabila pusat pentadbiran rasmi bagi ibu negeri Pahang telah dipindahkan dari Kuala Lipis terus menuju ke kawasan pesisiran pantai Kuantan.",
-  },
-  {
-    era: "2021 // STATUS BANDAR RAYA",
-    title: "Bandar Raya Moden",
-    body: "Setelah melalui evolusi perlombongan bijih di Lembing serta perkembangan industri pelabuhan Gebeng, Kuantan secara rasminya dinaikkan taraf kedaulatan kepada sebuah Bandar Raya moden pada 21 Februari 2021.",
-  },
-];
+import { useLanguage } from "@/lib/i18n";
 
 const TYPE_INTERVAL_MS = 22;
 const ERA_PAUSE_MS = 650;
@@ -154,19 +126,19 @@ function CityNetworkSvg() {
 }
 
 const ERA_ART = [
-  { Svg: CompassChartSvg, caption: "Nautical Chart // Muara" },
-  { Svg: WaveRouteSvg, caption: "Coastal Route // 1851" },
-  { Svg: BlueprintSvg, caption: "Civic Blueprint // 1955" },
-  { Svg: CityNetworkSvg, caption: "City Network // 2021" },
+  { Svg: CompassChartSvg },
+  { Svg: WaveRouteSvg },
+  { Svg: BlueprintSvg },
+  { Svg: CityNetworkSvg },
 ];
 
-function EraSvgCard({ index }: { index: number }) {
+function EraSvgCard({ index, caption }: { index: number; caption: string }) {
   const art = ERA_ART[index];
   return (
     <div className="w-full max-w-[200px] aspect-square p-4 rounded-xl border border-white/10 bg-[#0d1f35]/80 backdrop-blur-sm shadow-xl transition-all duration-500 ease-in-out">
       <art.Svg />
       <p className="mt-2 text-center font-mono text-[9px] uppercase tracking-[0.2em] text-stone-400">
-        {art.caption}
+        {caption}
       </p>
     </div>
   );
@@ -177,9 +149,11 @@ function EraPlaceholder() {
 }
 
 export default function KuantanChronicles() {
+  const { copy, language } = useLanguage();
+  const chronicles = copy.stories.chronicles;
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [activeEra, setActiveEra] = useState(0);
-  const [typed, setTyped] = useState<string[]>(CHRONICLES.map(() => ""));
+  const [typed, setTyped] = useState<string[]>(() => chronicles.map(() => ""));
   const [hasStarted, setHasStarted] = useState(false);
   const stepRefs = useRef<(HTMLDivElement | null)[]>([]);
 
@@ -201,12 +175,14 @@ export default function KuantanChronicles() {
 
   useEffect(() => {
     if (!hasStarted) return;
+    setTyped(chronicles.map(() => ""));
+    setActiveEra(0);
     let eraIndex = 0;
     let charIndex = 0;
     let timer: ReturnType<typeof setTimeout>;
 
     const tick = () => {
-      const current = CHRONICLES[eraIndex];
+      const current = chronicles[eraIndex];
       if (charIndex <= current.body.length) {
         setTyped((prev) => {
           const next = [...prev];
@@ -215,7 +191,7 @@ export default function KuantanChronicles() {
         });
         charIndex += 1;
         timer = setTimeout(tick, TYPE_INTERVAL_MS);
-      } else if (eraIndex < CHRONICLES.length - 1) {
+      } else if (eraIndex < chronicles.length - 1) {
         eraIndex += 1;
         charIndex = 0;
         setActiveEra(eraIndex);
@@ -225,7 +201,7 @@ export default function KuantanChronicles() {
 
     timer = setTimeout(tick, ERA_PAUSE_MS);
     return () => clearTimeout(timer);
-  }, [hasStarted]);
+  }, [chronicles, hasStarted, language]);
 
   // Cinematic auto-scroll: when a new step becomes active, gently pan the
   // viewport so the newly typing card stays centered. Skip the very first
@@ -238,7 +214,7 @@ export default function KuantanChronicles() {
   }, [activeEra, hasStarted]);
 
   // Render every revealed step (0..activeEra) as a stacked timeline row.
-  const revealedIndices = CHRONICLES.map((_, i) => i).filter(
+  const revealedIndices = chronicles.map((_, i) => i).filter(
     (i) => i <= activeEra
   );
 
@@ -249,11 +225,10 @@ export default function KuantanChronicles() {
     >
       <div className="w-full mb-8 px-6 text-center z-10">
         <h2 className="text-3xl sm:text-4xl font-serif text-stone-100 tracking-tight mb-2">
-          Stories of Kuantan
+          {copy.stories.title}
         </h2>
         <p className="text-xs sm:text-sm text-stone-300 max-w-md mx-auto leading-relaxed">
-          A museum-grade timeline of the coastal capital — printed line by
-          line as you arrive.
+          {copy.stories.description}
         </p>
       </div>
 
@@ -262,7 +237,7 @@ export default function KuantanChronicles() {
         className="w-full max-w-6xl mx-auto px-6 flex flex-col gap-8"
       >
         {revealedIndices.map((i) => {
-          const item = CHRONICLES[i];
+          const item = chronicles[i];
           const isActive = i === activeEra;
           const isEven = i % 2 === 0;
           const isComplete = i < activeEra;
@@ -278,7 +253,10 @@ export default function KuantanChronicles() {
               {/* LEFT — SVG on even steps */}
               {isEven ? (
                 <div className="hidden lg:flex justify-center">
-                  <EraSvgCard index={i} />
+                    <EraSvgCard
+                      index={i}
+                      caption={copy.stories.artCaptions[i]}
+                    />
                 </div>
               ) : (
                 <EraPlaceholder />
@@ -287,7 +265,7 @@ export default function KuantanChronicles() {
               {/* CENTER — revealed narrative card */}
               <div className="max-w-xl mx-auto w-full">
                 <article
-                  data-cursor="READ STORY"
+                    data-cursor={copy.stories.readStory.toUpperCase()}
                   className={`w-full rounded-xl bg-slate-900/70 p-6 border overflow-hidden transition-all duration-500 ${
                     isActive
                       ? "border-amber-400/40 shadow-[0_10px_40px_rgba(251,191,36,0.08)]"
@@ -314,7 +292,7 @@ export default function KuantanChronicles() {
                 {/* Step indicator for the active row */}
                 {isActive && (
                   <div className="mt-5 flex items-center justify-center gap-2">
-                    {CHRONICLES.map((c, idx) => (
+                    {chronicles.map((c, idx) => (
                       <span
                         key={c.era}
                         aria-hidden
@@ -336,7 +314,10 @@ export default function KuantanChronicles() {
                 <EraPlaceholder />
               ) : (
                 <div className="hidden lg:flex justify-center">
-                  <EraSvgCard index={i} />
+                    <EraSvgCard
+                      index={i}
+                      caption={copy.stories.artCaptions[i]}
+                    />
                 </div>
               )}
             </div>

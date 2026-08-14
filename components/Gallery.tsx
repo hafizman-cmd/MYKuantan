@@ -14,6 +14,7 @@ import {
 import LikeButton from "./LikeButton";
 import { supabaseClient } from "@/lib/supabase/client";
 import { useCollection } from "@/lib/useCollection";
+import { useLanguage } from "@/lib/i18n";
 
 const EditorialMap = dynamic(() => import("./EditorialMap"), {
   ssr: false,
@@ -21,7 +22,7 @@ const EditorialMap = dynamic(() => import("./EditorialMap"), {
 
 const ARCHIVE_PAGE_SIZE = 12;
 
-const SORT_MODES = ["Newest", "Oldest"] as const;
+const SORT_MODES = ["newest", "oldest"] as const;
 type SortMode = "newest" | "oldest";
 
 const REPORT_REASONS = [
@@ -54,6 +55,7 @@ function uploaderHandle(name: string): string {
 }
 
 export default function Gallery({ photos: initialPhotos }: GalleryProps) {
+  const { copy } = useLanguage();
   const [photos, setPhotos] = useState<Photo[]>(initialPhotos);
   const {
     bookmarkedPhotoIds,
@@ -312,11 +314,10 @@ export default function Gallery({ photos: initialPhotos }: GalleryProps) {
         {/* Header */}
         <div className="w-full max-w-3xl flex flex-col items-center justify-center text-center mx-auto mb-6">
           <h2 className="text-3xl sm:text-4xl font-serif text-stone-100 tracking-tight mb-2">
-            Frames of Kuantan
+            {copy.gallery.title}
           </h2>
           <p className="text-xs sm:text-sm text-stone-300 max-w-md mx-auto mb-6 text-center">
-            A scroll-linked atlas — each frame pins its light on the dark map
-            of Kuantan.
+            {copy.gallery.description}
           </p>
         </div>
 
@@ -326,7 +327,7 @@ export default function Gallery({ photos: initialPhotos }: GalleryProps) {
           <div className="h-full w-full overflow-y-auto custom-scrollbar snap-y snap-mandatory rounded-2xl bg-stone-900/40 p-2 border border-stone-800">
             {photos.length === 0 ? (
               <p className="text-center text-[#F5F0E8]/60 py-16 font-light">
-                No photos approved yet. Be the first to submit.
+                {copy.gallery.noPhotos}
               </p>
             ) : (
               photos.map((photo) => {
@@ -377,7 +378,7 @@ export default function Gallery({ photos: initialPhotos }: GalleryProps) {
                         {photo.caption}
                       </p>
                       <span className="text-[#F5F0E8]/70 text-xs tracking-wide break-words whitespace-normal leading-relaxed max-w-[85%]">
-                        by {photo.photographer}
+                        {copy.gallery.by} {photo.photographer}
                       </span>
                     </figcaption>
                   </div>
@@ -405,10 +406,10 @@ export default function Gallery({ photos: initialPhotos }: GalleryProps) {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
             <span className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#F5F0E8]/25 bg-white/5 px-4 py-1.5 text-[11px] uppercase tracking-[0.3em] text-[#F5F0E8]/80 backdrop-blur-md">
-              Browse
+              {copy.gallery.browse}
             </span>
             <h2 className="font-display text-[#F5F0E8] text-3xl md:text-5xl font-extrabold tracking-tight">
-              THE ARCHIVE
+              {copy.gallery.archive}
             </h2>
           </div>
 
@@ -424,16 +425,16 @@ export default function Gallery({ photos: initialPhotos }: GalleryProps) {
                     : "border-white/15 bg-white/5 text-[#F5F0E8]/75 backdrop-blur-md hover:text-[#F5F0E8] hover:border-white/30"
                   }`}
               >
-                All
+                {copy.gallery.all}
               </button>
 
               <select
                 value={locationFilter}
                 onChange={(event) => setLocationFilter(event.target.value)}
-                aria-label="Filter archive by location"
+                aria-label={copy.gallery.filterByLocation}
                 className="bg-slate-900/90 text-stone-200 border border-slate-700/80 rounded-full px-4 py-2 text-xs font-mono uppercase tracking-wider focus:outline-none focus:border-amber-400 cursor-pointer transition-colors"
               >
-                <option value="ALL">All Locations (Dropdown)</option>
+                <option value="ALL">{copy.gallery.allLocations}</option>
                 {archiveLocations.map((location) => (
                   <option key={location} value={location}>
                     {location}
@@ -444,9 +445,9 @@ export default function Gallery({ photos: initialPhotos }: GalleryProps) {
 
             {/* Sort buttons */}
             <div className="inline-flex rounded-full border border-white/15 bg-white/5 p-1 backdrop-blur-md">
-              {SORT_MODES.map((label) => {
-                const mode: SortMode =
-                  label === "Newest" ? "newest" : "oldest";
+              {SORT_MODES.map((mode) => {
+                const label =
+                  mode === "newest" ? copy.gallery.newest : copy.gallery.oldest;
                 const active = sortMode === mode;
                 return (
                   <button
@@ -475,7 +476,7 @@ export default function Gallery({ photos: initialPhotos }: GalleryProps) {
               data-cursor="VIEW FRAME"
               role="button"
               tabIndex={0}
-              aria-label={`Preview ${photo.caption || photo.location}`}
+              aria-label={copy.gallery.preview(photo.caption || photo.location)}
               onClick={() => setSelectedPhotoId(photo.id)}
               onKeyDown={(event) => {
                 if (event.target !== event.currentTarget) return;
@@ -527,8 +528,8 @@ export default function Gallery({ photos: initialPhotos }: GalleryProps) {
                     aria-pressed={bookmarkedPhotoIds.has(photo.id)}
                     aria-label={
                       bookmarkedPhotoIds.has(photo.id)
-                        ? "Remove photo from My Kuantan Trip"
-                        : "Save photo to My Kuantan Trip"
+                         ? copy.gallery.removePhoto
+                         : copy.gallery.savePhoto
                     }
                     className={`inline-flex items-center justify-center bg-black/60 backdrop-blur-md border border-white/10 rounded-full p-2 hover:scale-105 transition-transform disabled:cursor-wait disabled:opacity-60 ${
                       bookmarkedPhotoIds.has(photo.id)
@@ -578,7 +579,7 @@ export default function Gallery({ photos: initialPhotos }: GalleryProps) {
         {/* Empty state */}
         {archivePhotos.length === 0 ? (
           <p className="mt-12 text-center text-[#F5F0E8]/60 py-12 font-light">
-            No frames from {locationFilter} yet.
+            {copy.gallery.noFrames(locationFilter)}
           </p>
         ) : null}
 
@@ -590,9 +591,9 @@ export default function Gallery({ photos: initialPhotos }: GalleryProps) {
               onClick={() => setVisibleCount((c) => c + ARCHIVE_PAGE_SIZE)}
               className="inline-flex items-center gap-2 rounded-full border border-[#F5F0E8]/25 bg-white/5 px-8 py-3 text-[11px] uppercase tracking-[0.3em] text-[#F5F0E8]/85 backdrop-blur-md transition-colors duration-300 hover:bg-[#F5F0E8] hover:text-[#0F3460] hover:border-[#F5F0E8]"
             >
-              Load More
+              {copy.gallery.loadMore}
               <span className="text-[10px] tabular-nums opacity-70">
-                ({archivePhotos.length - visibleCount} remaining)
+                {copy.gallery.remaining(archivePhotos.length - visibleCount)}
               </span>
             </button>
           </div>
@@ -680,7 +681,7 @@ export default function Gallery({ photos: initialPhotos }: GalleryProps) {
                 <button
                   type="button"
                   onClick={() => setSelectedPhotoId(null)}
-                  aria-label="Close photo preview"
+                   aria-label={copy.gallery.closePreview}
                   className="relative z-10 text-stone-400 hover:text-amber-400 transition-colors p-1.5 rounded-full bg-slate-800/80 border border-slate-700/50 cursor-pointer"
                 >
                   <svg
@@ -754,7 +755,7 @@ export default function Gallery({ photos: initialPhotos }: GalleryProps) {
                       strokeLinejoin="round"
                     />
                   </svg>
-                  Report
+                   {copy.gallery.report}
                 </button>
               </div>
             </motion.div>
