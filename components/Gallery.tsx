@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import dynamic from "next/dynamic";
 import { AnimatePresence, motion } from "framer-motion";
 import type { Photo } from "@/types/photo";
@@ -147,6 +148,41 @@ export default function Gallery({ photos: initialPhotos }: GalleryProps) {
 
   const visibleArchive = archivePhotos.slice(0, visibleCount);
   const hasMore = archivePhotos.length > visibleCount;
+
+  const featuredPhotographers = useMemo(() => {
+    const contributors = new Map<
+      string,
+      {
+        username: string;
+        frames: number;
+        likes: number;
+        avatarPhoto: Photo;
+      }
+    >();
+
+    photos.forEach((photo) => {
+      const username = photo.photographer.trim() || "anonymous";
+      const key = username.replace(/^@/, "").toLowerCase();
+      const existing = contributors.get(key);
+
+      if (existing) {
+        existing.frames += 1;
+        existing.likes += photo.likes_count ?? 0;
+        return;
+      }
+
+      contributors.set(key, {
+        username: username.replace(/^@/, ""),
+        frames: 1,
+        likes: photo.likes_count ?? 0,
+        avatarPhoto: photo,
+      });
+    });
+
+    return Array.from(contributors.values())
+      .sort((a, b) => b.frames - a.frames || b.likes - a.likes)
+      .slice(0, 10);
+  }, [photos]);
 
   // ── Auth-aware liked set (unchanged from prior implementation) ────────
   const [isAuthed, setIsAuthed] = useState(false);
@@ -340,8 +376,8 @@ export default function Gallery({ photos: initialPhotos }: GalleryProps) {
                     ref={setCardRef(photo.id)}
                     onClick={() => setActiveLocation(photo.location)}
                     className={`group h-full w-full flex-shrink-0 snap-start snap-always relative rounded-xl overflow-hidden mb-0 cursor-pointer transition-all duration-300 ${isSelected
-                        ? "border border-white/30 shadow-lg shadow-black/40"
-                        : "border border-stone-800/80"
+                      ? "border border-white/30 shadow-lg shadow-black/40"
+                      : "border border-stone-800/80"
                       }`}
                   >
                     {/* Photo frame — fills 100% of the card height cleanly */}
@@ -402,6 +438,53 @@ export default function Gallery({ photos: initialPhotos }: GalleryProps) {
           SECTION 2 — BOTTOM ARCHIVE GRID (Standard Flow)
          ══════════════════════════════════════════════════════════════════ */}
       <section className="w-full max-w-[1600px] mx-auto px-6 lg:px-16 pb-24 border-t border-stone-800/60 pt-12">
+        {/* Featured contributors */}
+        <div className="mb-12">
+          <div className="mb-3">
+            <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-amber-400">
+              FEATURED CREATORS
+            </span>
+            <p className="mt-2 font-display text-xl text-stone-200 sm:text-2xl">
+              The photographers documenting Kuantan&apos;s scenery.
+            </p>
+          </div>
+
+          <div className="flex cursor-pointer gap-4 overflow-x-auto py-3 scrollbar-none touch-pan-x">
+            {featuredPhotographers.map((contributor) => {
+              const label = uploaderHandle(contributor.username);
+              const initial = contributor.username.charAt(0).toUpperCase();
+
+              return (
+                <Link
+                  key={contributor.username}
+                  href={`/author/${encodeURIComponent(contributor.username)}`}
+                  className="group flex w-24 shrink-0 flex-col items-center gap-2 text-center"
+                  aria-label={`View photos by ${label}`}
+                >
+                  <span className="relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border border-slate-700/60 bg-slate-800/80 font-serif text-lg text-stone-200 shadow-md transition-all group-hover:scale-105 group-hover:border-amber-400">
+                    <Image
+                      src={contributor.avatarPhoto.image_url}
+                      alt=""
+                      fill
+                      sizes="56px"
+                      className="object-cover"
+                    />
+                    <span className="relative z-10 flex h-full w-full items-center justify-center bg-slate-900/35 opacity-0 transition-opacity group-hover:opacity-100">
+                      {initial}
+                    </span>
+                  </span>
+                  <span className="text-xs font-bold text-stone-300 transition-colors group-hover:text-amber-400">
+                    {label}
+                  </span>
+                  <span className="rounded-full border border-slate-700/60 bg-slate-800/70 px-2 py-0.5 text-[9px] font-mono uppercase tracking-wide text-stone-400">
+                    {contributor.frames} {contributor.frames === 1 ? "frame" : "frames"}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Filter & Header Row */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
@@ -421,8 +504,8 @@ export default function Gallery({ photos: initialPhotos }: GalleryProps) {
                 onClick={() => setLocationFilter("ALL")}
                 aria-pressed={locationFilter === "ALL"}
                 className={`rounded-full px-4 py-2 text-[11px] uppercase tracking-[0.22em] transition-colors duration-300 border ${locationFilter === "ALL"
-                    ? "bg-amber-400 text-[#0F3460] border-amber-400 font-bold shadow-[0_0_24px_rgba(251,191,36,0.35)]"
-                    : "border-white/15 bg-white/5 text-[#F5F0E8]/75 backdrop-blur-md hover:text-[#F5F0E8] hover:border-white/30"
+                  ? "bg-amber-400 text-[#0F3460] border-amber-400 font-bold shadow-[0_0_24px_rgba(251,191,36,0.35)]"
+                  : "border-white/15 bg-white/5 text-[#F5F0E8]/75 backdrop-blur-md hover:text-[#F5F0E8] hover:border-white/30"
                   }`}
               >
                 {copy.gallery.all}
@@ -456,8 +539,8 @@ export default function Gallery({ photos: initialPhotos }: GalleryProps) {
                     onClick={() => setSortMode(mode)}
                     aria-pressed={active}
                     className={`px-5 py-2 rounded-full text-[11px] uppercase tracking-[0.22em] transition-colors duration-300 ${active
-                        ? "bg-[#F5F0E8] text-[#0F3460] font-bold"
-                        : "text-[#F5F0E8]/70 hover:text-[#F5F0E8]"
+                      ? "bg-[#F5F0E8] text-[#0F3460] font-bold"
+                      : "text-[#F5F0E8]/70 hover:text-[#F5F0E8]"
                       }`}
                   >
                     {label}
@@ -528,14 +611,13 @@ export default function Gallery({ photos: initialPhotos }: GalleryProps) {
                     aria-pressed={bookmarkedPhotoIds.has(photo.id)}
                     aria-label={
                       bookmarkedPhotoIds.has(photo.id)
-                         ? copy.gallery.removePhoto
-                         : copy.gallery.savePhoto
+                        ? copy.gallery.removePhoto
+                        : copy.gallery.savePhoto
                     }
-                    className={`inline-flex items-center justify-center bg-black/60 backdrop-blur-md border border-white/10 rounded-full p-2 hover:scale-105 transition-transform disabled:cursor-wait disabled:opacity-60 ${
-                      bookmarkedPhotoIds.has(photo.id)
+                    className={`inline-flex items-center justify-center bg-black/60 backdrop-blur-md border border-white/10 rounded-full p-2 hover:scale-105 transition-transform disabled:cursor-wait disabled:opacity-60 ${bookmarkedPhotoIds.has(photo.id)
                         ? "text-amber-400"
                         : "text-stone-200 hover:text-amber-400"
-                    }`}
+                      }`}
                   >
                     <svg
                       viewBox="0 0 24 24"
@@ -681,7 +763,7 @@ export default function Gallery({ photos: initialPhotos }: GalleryProps) {
                 <button
                   type="button"
                   onClick={() => setSelectedPhotoId(null)}
-                   aria-label={copy.gallery.closePreview}
+                  aria-label={copy.gallery.closePreview}
                   className="relative z-10 text-stone-400 hover:text-amber-400 transition-colors p-1.5 rounded-full bg-slate-800/80 border border-slate-700/50 cursor-pointer"
                 >
                   <svg
@@ -755,7 +837,7 @@ export default function Gallery({ photos: initialPhotos }: GalleryProps) {
                       strokeLinejoin="round"
                     />
                   </svg>
-                   {copy.gallery.report}
+                  {copy.gallery.report}
                 </button>
               </div>
             </motion.div>
@@ -860,11 +942,10 @@ export default function Gallery({ photos: initialPhotos }: GalleryProps) {
                           {REPORT_REASONS.map((reason) => (
                             <label
                               key={reason}
-                              className={`flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2.5 text-sm transition-colors ${
-                                reportReason === reason
+                              className={`flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2.5 text-sm transition-colors ${reportReason === reason
                                   ? "border-amber-400/70 bg-amber-400/10 text-amber-100"
                                   : "border-slate-700/70 bg-slate-800/50 text-stone-300 hover:border-slate-600"
-                              }`}
+                                }`}
                             >
                               <input
                                 type="radio"
